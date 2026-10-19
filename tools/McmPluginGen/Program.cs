@@ -5,7 +5,8 @@ using Mutagen.Bethesda.Skyrim;
 if (args.Length != 1 || !args[0].EndsWith(".esp", StringComparison.OrdinalIgnoreCase))
 {
     Console.Error.WriteLine("usage: McmPluginGen <output.esp>");
-    return 2;
+    Environment.ExitCode = 2;
+    return;
 }
 
 // ESP-FE: a light-flagged ESP that does not consume a full plugin slot.
