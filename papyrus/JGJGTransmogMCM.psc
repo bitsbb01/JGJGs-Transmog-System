@@ -6,9 +6,10 @@ Int rebuildOID
 Int browseOID
 Int nextOID
 Int previousOID
-Int searchOID
+Int pluginOID
 Int pageIndex = 0
-String searchText = ""
+String filterPlugin = ""
+Int menuMode = 0
 Event OnConfigInit()
     ModName = "JGJGs Transmog System"
     Pages = new String[2]
@@ -27,7 +28,7 @@ Event OnPageReset(String page)
     AddHeaderOption("Compatible appearance catalogue")
     AddTextOption("Cached items", JGJGTransmogNative.CatalogueCount() as String, OPTION_FLAG_DISABLED)
     rebuildOID = AddTextOption("Build / refresh catalogue", "Select")
-    searchOID = AddInputOption("Search name", searchText)
+    pluginOID = AddMenuOption("Filter by mod", filterPlugin)
     browseOID = AddMenuOption("Right-hand weapon appearances", "Browse")
     previousOID = AddTextOption("Previous page", "Select")
     nextOID = AddTextOption("Next page", "Select")
@@ -49,21 +50,24 @@ Event OnOptionSelect(Int option)
     EndIf
     ForcePageReset()
 EndEvent
-Event OnOptionInputOpen(Int option)
-    If option == searchOID
-        SetInputDialogStartText(searchText)
-    EndIf
-EndEvent
-Event OnOptionInputAccept(Int option, String value)
-    If option == searchOID
-        searchText = value
-        pageIndex = 0
-        ForcePageReset()
-    EndIf
-EndEvent
 Event OnOptionMenuOpen(Int option)
-    If option == browseOID
-        String[] names = JGJGTransmogNative.QueryNames(Game.GetPlayer().GetEquippedWeapon(), searchText, "", pageIndex)
+    If option == pluginOID
+        menuMode = 1
+        Form target = Game.GetPlayer().GetEquippedWeapon()
+        String[] mods = JGJGTransmogNative.QueryPlugins(target)
+        String[] options = new String[mods.Length + 1]
+        options[0] = "All mods"
+        Int i = 0
+        While i < mods.Length
+            options[i + 1] = mods[i]
+            i += 1
+        EndWhile
+        SetMenuDialogOptions(options)
+        SetMenuDialogStartIndex(0)
+        SetMenuDialogDefaultIndex(0)
+    ElseIf option == browseOID
+        menuMode = 2
+        String[] names = JGJGTransmogNative.QueryNames(Game.GetPlayer().GetEquippedWeapon(), "", filterPlugin, pageIndex)
         If names.Length == 0
             names = new String[1]
             names[0] = "No compatible results; build the catalogue first"
@@ -74,7 +78,18 @@ Event OnOptionMenuOpen(Int option)
     EndIf
 EndEvent
 Event OnOptionMenuAccept(Int option, Int index)
-    If option == browseOID
+    If option == pluginOID && menuMode == 1
+        If index == 0
+            filterPlugin = ""
+        Else
+            String[] mods = JGJGTransmogNative.QueryPlugins(Game.GetPlayer().GetEquippedWeapon())
+            If index <= mods.Length
+                filterPlugin = mods[index - 1]
+            EndIf
+        EndIf
+        pageIndex = 0
+        ForcePageReset()
+    ElseIf option == browseOID && menuMode == 2
         ShowMessage("Catalogue inspection only. Apply and 3D preview are not available in this development build.", False)
     EndIf
 EndEvent

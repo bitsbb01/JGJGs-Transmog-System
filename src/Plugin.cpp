@@ -102,12 +102,30 @@ std::vector<std::string> QueryNames(RE::StaticFunctionTag*, RE::TESForm* target,
     for (auto& key : found.keys) if (auto* item = current->catalogue.find(key)) names.push_back(item->name + " [" + key.plugin + "]");
     return names;
 }
+std::vector<std::string> QueryPlugins(RE::StaticFunctionTag*, RE::TESForm* target) {
+    if (!target) return {};
+    std::shared_ptr<const Snapshot> current;
+    { std::lock_guard lock(gate); current = catalogue; }
+    if (!current) return {};
+    auto original = current->items.find(target->GetFormID());
+    if (original == current->items.end()) return {};
+    std::map<std::string, std::string> sorted;
+    for (const auto& [id, item] : current->items) {
+        if (jgjg::compatible(original->second, item))
+            sorted.try_emplace(jgjg::folded(item.key.plugin), item.key.plugin);
+    }
+    std::vector<std::string> names;
+    names.reserve(sorted.size());
+    for (auto& [foldedName, displayName] : sorted) names.push_back(displayName);
+    return names;
+}
 bool Register(RE::BSScript::IVirtualMachine* vm) {
     vm->RegisterFunction("RequestCatalogue", "JGJGTransmogNative", RequestCatalogue);
     vm->RegisterFunction("CatalogueCount", "JGJGTransmogNative", CatalogueCount);
     vm->RegisterFunction("IsBuilding", "JGJGTransmogNative", IsBuilding);
     vm->RegisterFunction("Status", "JGJGTransmogNative", Status);
     vm->RegisterFunction("QueryNames", "JGJGTransmogNative", QueryNames);
+    vm->RegisterFunction("QueryPlugins", "JGJGTransmogNative", QueryPlugins);
     return true;
 }
 }
