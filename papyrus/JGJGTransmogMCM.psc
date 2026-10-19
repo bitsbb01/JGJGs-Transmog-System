@@ -11,12 +11,10 @@ Int previewOID
 Int cancelPreviewOID
 Int nextOID
 Int previousOID
-Int searchOID
 Int pageIndex = 0
 Int menuMode = 0
 String filterPlugin = ""
 String filterLabel = "All mods"
-String searchFilter = ""
 String selectedName = "None"
 String targetLabel = "Select worn armor"
 Form targetArmor
@@ -49,7 +47,6 @@ Event OnPageReset(String page)
     rebuildOID = AddTextOption("Build / refresh catalogue", "Select")
     targetOID = AddMenuOption("Worn armor to change", targetLabel)
     pluginOID = AddMenuOption("Filter by mod", filterLabel)
-    searchOID = AddInputOption("Search armor names", searchFilter)
     browseOID = AddMenuOption("Choose appearance", selectedName)
     applyOID = AddTextOption("Apply appearance", "Select")
     previewOID = AddTextOption("Preview selected appearance", "Temporary")
@@ -59,7 +56,7 @@ Event OnPageReset(String page)
     nextOID = AddTextOption("Next page", "Select")
     Int pageCount = 1
     If targetArmor
-        pageCount = JGJGTransmogNative.QueryPageCount(targetArmor, searchFilter, filterPlugin)
+        pageCount = JGJGTransmogNative.QueryPageCount(targetArmor, filterPlugin)
         If pageCount < 1
             pageCount = 1
         EndIf
@@ -80,7 +77,7 @@ Event OnOptionSelect(Int option)
         EndIf
     ElseIf option == nextOID
         If targetArmor
-            Int pageCount = JGJGTransmogNative.QueryPageCount(targetArmor, searchFilter, filterPlugin)
+            Int pageCount = JGJGTransmogNative.QueryPageCount(targetArmor, filterPlugin)
             If pageIndex + 1 < pageCount
                 pageIndex += 1
             EndIf
@@ -119,14 +116,6 @@ Event OnOptionSelect(Int option)
     ForcePageReset()
 EndEvent
 
-Event OnOptionInputAccept(Int option, String value)
-    If option == searchOID
-        searchFilter = value
-        pageIndex = 0
-        ForcePageReset()
-    EndIf
-EndEvent
-
 Event OnOptionMenuOpen(Int option)
     If option == targetOID
         menuMode = 1
@@ -145,7 +134,7 @@ Event OnOptionMenuOpen(Int option)
         SetMenuDialogDefaultIndex(0)
     ElseIf option == browseOID && targetArmor
         menuMode = 3
-        String[] names = JGJGTransmogNative.QueryNames(targetArmor, searchFilter, filterPlugin, pageIndex)
+        String[] names = JGJGTransmogNative.QueryNames(targetArmor, "", filterPlugin, pageIndex)
         If names.Length == 0
             names = new String[1]
             names[0] = "No compatible results; build the catalogue first"
@@ -185,8 +174,8 @@ Event OnOptionMenuAccept(Int option, Int index)
         EndIf
         pageIndex = 0
     ElseIf option == browseOID && menuMode == 3 && targetArmor
-        Form[] forms = JGJGTransmogNative.QueryForms(targetArmor, searchFilter, filterPlugin, pageIndex)
-        String[] names = JGJGTransmogNative.QueryNames(targetArmor, searchFilter, filterPlugin, pageIndex)
+        Form[] forms = JGJGTransmogNative.QueryForms(targetArmor, "", filterPlugin, pageIndex)
+        String[] names = JGJGTransmogNative.QueryNames(targetArmor, "", filterPlugin, pageIndex)
         If index < forms.Length
             JGJGTransmogNative.CancelArmorPreview(targetArmor)
             selectedAppearance = forms[index]
