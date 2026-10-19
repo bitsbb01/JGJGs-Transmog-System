@@ -79,6 +79,8 @@ def main():
                 entries[p.relative_to(args.stage).as_posix()] = p.read_bytes()
         entries['JGJG-INSTALL.txt'] = (ROOT/'docs/INSTALL.md').read_bytes()
         suffix = 'Steam-1.6.1170'
+    if args.mode != 'source':
+        entries['THIRD-PARTY-NOTICES.txt'] = (ROOT/'THIRD-PARTY-NOTICES.txt').read_bytes()
     path = args.out/f'JGJGs-Transmog-System-{version}-{suffix}.zip'
     archive(path, entries)
     sums = []
