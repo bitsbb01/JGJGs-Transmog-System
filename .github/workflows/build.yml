@@ -33,13 +33,13 @@ jobs:
           tar -xzf /tmp/papyrus-compiler.tar.gz -C tools/papyrus-compiler-v/bin
           echo "Extracted compiler files:"
           find tools/papyrus-compiler-v/bin -maxdepth 3 -type f -print
-          compiler="$(find tools/papyrus-compiler-v/bin -type f -perm -u+x -print -quit)"
+          compiler="$(find tools/papyrus-compiler-v/bin -type f -iname papyrus -print -quit)"
           if [ -z "$compiler" ]; then
             compiler="$(find tools/papyrus-compiler-v/bin -type f -iname '*papyrus*compiler*' -print -quit)"
           fi
           if [ -z "$compiler" ]; then echo 'Papyrus compiler executable was not found in the release archive.'; exit 1; fi
           chmod +x "$compiler"
-          "$compiler" --help
+          "$compiler" help
           "$compiler" compile -nocache -h build/papyrus-headers -i papyrus/JGJGTransmogNative.psc -o package/Data/Scripts
           "$compiler" compile -nocache -h build/papyrus-headers -i papyrus/JGJGTransmogMCM.psc -o package/Data/Scripts
           python3 - <<'PY'
