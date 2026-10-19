@@ -2,7 +2,7 @@
 
 There is currently no playable mod package. SOURCE and DEVELOPER-ONLY downloads are not ready to install into Skyrim.
 
-The `ARMOR-TEST-ONLY` Actions artifact is an intermediate test build. It includes an ESL-flagged ESP-FE, compiled MCM scripts, and the native SKSE plugin. It adds a player-only armor appearance hook with MCM selection and apply/restore controls. Weapons, save/load persistence, favourite presets and the side-by-side 3D preview are not implemented in this test stage. Install only into a disposable MO2/Vortex profile and save. Requires Skyrim Steam 1.6.1170, matching SKSE64, SkyUI SE, and the matching Address Library database.
+The `ARMOR-TEST-ONLY` Actions artifact is an intermediate test build. It includes an ESL-flagged ESP-FE, compiled MCM scripts, and the native SKSE plugin. It adds player-only armor appearance selection, apply/restore, save/load serialization, and a temporary on-character preview. It does not provide weapon appearances, favourite presets, or a side-by-side 3D viewer. Preview the selected armor on the player, then apply it to keep it or cancel to restore the saved look. Install only into a disposable MO2/Vortex profile and save. Requires Skyrim Steam 1.6.1170, matching SKSE64, SkyUI SE, and the matching Address Library database.
 
 When a playable prerelease is published:
 
