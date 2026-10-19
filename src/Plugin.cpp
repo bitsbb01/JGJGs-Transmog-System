@@ -119,6 +119,16 @@ std::vector<std::string> QueryPlugins(RE::StaticFunctionTag*, RE::TESForm* targe
     for (auto& [foldedName, displayName] : sorted) names.push_back(displayName);
     return names;
 }
+std::int32_t QueryPageCount(RE::StaticFunctionTag*, RE::TESForm* target, std::string plugin) {
+    if (!target) return 0;
+    std::shared_ptr<const Snapshot> current;
+    { std::lock_guard lock(gate); current = catalogue; }
+    if (!current) return 0;
+    auto original = current->items.find(target->GetFormID());
+    if (original == current->items.end()) return 0;
+    const auto total = current->catalogue.query(original->second, "", std::move(plugin), 0).total;
+    return static_cast<std::int32_t>((total + 24) / 25);
+}
 bool Register(RE::BSScript::IVirtualMachine* vm) {
     vm->RegisterFunction("RequestCatalogue", "JGJGTransmogNative", RequestCatalogue);
     vm->RegisterFunction("CatalogueCount", "JGJGTransmogNative", CatalogueCount);
@@ -126,6 +136,7 @@ bool Register(RE::BSScript::IVirtualMachine* vm) {
     vm->RegisterFunction("Status", "JGJGTransmogNative", Status);
     vm->RegisterFunction("QueryNames", "JGJGTransmogNative", QueryNames);
     vm->RegisterFunction("QueryPlugins", "JGJGTransmogNative", QueryPlugins);
+    vm->RegisterFunction("QueryPageCount", "JGJGTransmogNative", QueryPageCount);
     return true;
 }
 }

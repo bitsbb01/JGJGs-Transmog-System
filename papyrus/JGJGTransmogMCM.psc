@@ -9,6 +9,7 @@ Int previousOID
 Int pluginOID
 Int pageIndex = 0
 String filterPlugin = ""
+String filterLabel = "All mods"
 Int menuMode = 0
 Event OnConfigInit()
     ModName = "JGJGs Transmog System"
@@ -28,11 +29,15 @@ Event OnPageReset(String page)
     AddHeaderOption("Compatible appearance catalogue")
     AddTextOption("Cached items", JGJGTransmogNative.CatalogueCount() as String, OPTION_FLAG_DISABLED)
     rebuildOID = AddTextOption("Build / refresh catalogue", "Select")
-    pluginOID = AddMenuOption("Filter by mod", filterPlugin)
+    pluginOID = AddMenuOption("Filter by mod", filterLabel)
     browseOID = AddMenuOption("Right-hand weapon appearances", "Browse")
     previousOID = AddTextOption("Previous page", "Select")
     nextOID = AddTextOption("Next page", "Select")
-    AddTextOption("Page requested", pageIndex + 1, OPTION_FLAG_DISABLED)
+    Int pageCount = JGJGTransmogNative.QueryPageCount(Game.GetPlayer().GetEquippedWeapon(), filterPlugin)
+    If pageCount < 1
+        pageCount = 1
+    EndIf
+    AddTextOption("Page", (pageIndex + 1) as String + " / " + pageCount as String, OPTION_FLAG_DISABLED)
 EndEvent
 Event OnOptionSelect(Int option)
     If option == rebuildOID
@@ -46,7 +51,10 @@ Event OnOptionSelect(Int option)
             pageIndex -= 1
         EndIf
     ElseIf option == nextOID
-        pageIndex += 1
+        Int pageCount = JGJGTransmogNative.QueryPageCount(Game.GetPlayer().GetEquippedWeapon(), filterPlugin)
+        If pageIndex + 1 < pageCount
+            pageIndex += 1
+        EndIf
     EndIf
     ForcePageReset()
 EndEvent
@@ -81,10 +89,12 @@ Event OnOptionMenuAccept(Int option, Int index)
     If option == pluginOID && menuMode == 1
         If index == 0
             filterPlugin = ""
+            filterLabel = "All mods"
         Else
             String[] mods = JGJGTransmogNative.QueryPlugins(Game.GetPlayer().GetEquippedWeapon())
             If index <= mods.Length
                 filterPlugin = mods[index - 1]
+                filterLabel = filterPlugin
             EndIf
         EndIf
         pageIndex = 0
