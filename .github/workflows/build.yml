@@ -20,14 +20,6 @@ jobs:
         with:
           repository: schlangster/skyui
           path: tools/skyui-sdk
-      - uses: actions/checkout@v4
-        with:
-          repository: rethesda/papyrus-compiler-v
-          path: tools/papyrus-compiler-v
-      - uses: vlang/setup-v@v1.7
-        with:
-          version: 0c3183c
-          token: ${{ github.token }}
       - name: Compile Papyrus MCM and native declarations
         shell: bash
         run: |
@@ -35,9 +27,13 @@ jobs:
           mkdir -p build/papyrus-headers package/Data/Scripts tools/papyrus-compiler-v/bin
           cp tools/skyui-sdk/dist/Data/Scripts/Headers/*.psc build/papyrus-headers/
           cp papyrus/headers/*.psc build/papyrus-headers/
-          (cd tools/papyrus-compiler-v && v -o bin/papyrus-compiler -prod -g -gc none compiler.v)
-          tools/papyrus-compiler-v/bin/papyrus-compiler compile -nocache -h build/papyrus-headers -i papyrus/JGJGTransmogNative.psc -o package/Data/Scripts
-          tools/papyrus-compiler-v/bin/papyrus-compiler compile -nocache -h build/papyrus-headers -i papyrus/JGJGTransmogMCM.psc -o package/Data/Scripts
+          curl -fsSL https://github.com/russo-2025/papyrus-compiler/releases/download/2026.03.15/papyrus-compiler-ubuntu.tar.gz -o /tmp/papyrus-compiler.tar.gz
+          tar -xzf /tmp/papyrus-compiler.tar.gz -C tools/papyrus-compiler-v/bin
+          compiler="$(find tools/papyrus-compiler-v/bin -type f -name papyrus-compiler -print -quit)"
+          test -n "$compiler"
+          chmod +x "$compiler"
+          "$compiler" compile -nocache -h build/papyrus-headers -i papyrus/JGJGTransmogNative.psc -o package/Data/Scripts
+          "$compiler" compile -nocache -h build/papyrus-headers -i papyrus/JGJGTransmogMCM.psc -o package/Data/Scripts
           python3 - <<'PY'
           from pathlib import Path
           for name in ('JGJGTransmogNative.pex', 'JGJGTransmogMCM.pex'):
