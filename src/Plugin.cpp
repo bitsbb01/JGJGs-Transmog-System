@@ -1,5 +1,6 @@
-// Read-only native catalogue prototype. No engine hooks or inventory writes.
+// SKSE native catalogue and player-only visual appearance prototype.
 #include "jgjg/Core.hpp"
+#include "ArmorAppearance.h"
 #include <mutex>
 #include <thread>
 #include <memory>
@@ -8,7 +9,10 @@
 
 namespace {
 std::mutex gate;
-struct Snapshot { jgjg::Catalogue catalogue; std::map<RE::FormID, jgjg::Item> items; };
+struct Snapshot {
+    jgjg::Catalogue catalogue;
+    std::map<RE::FormID, jgjg::Item> items;
+};
 std::shared_ptr<const Snapshot> catalogue;
 std::atomic<bool> building{false};
 std::atomic<unsigned> generation{0};
@@ -130,6 +134,47 @@ std::int32_t QueryPageCount(RE::StaticFunctionTag*, RE::TESForm* target, std::st
     const auto total = current->catalogue.query(original->second, "", std::move(plugin), 0).total;
     return static_cast<std::int32_t>((total + 24) / 25);
 }
+std::vector<RE::TESForm*> GetPlayerWornArmors(RE::StaticFunctionTag*) {
+    auto* player = RE::PlayerCharacter::GetSingleton();
+    if (!player) return {};
+    std::map<RE::FormID, RE::TESObjectARMO*> worn;
+    for (std::uint32_t bit = 0; bit < 32; ++bit) {
+        auto* armor = player->GetWornArmor(
+            static_cast<RE::BGSBipedObjectForm::BipedObjectSlot>(1u << bit), true);
+        if (armor) worn.try_emplace(armor->GetFormID(), armor);
+    }
+    std::vector<RE::TESForm*> result;
+    result.reserve(worn.size());
+    for (const auto& [id, armor] : worn) result.push_back(armor);
+    return result;
+}
+std::vector<std::string> GetPlayerWornArmorNames(RE::StaticFunctionTag*) {
+    std::vector<std::string> names;
+    for (auto* form : GetPlayerWornArmors(nullptr)) {
+        const char* name = form ? form->GetName() : nullptr;
+        names.emplace_back(name && *name ? name : "Unnamed armor");
+    }
+    return names;
+}
+std::vector<RE::TESForm*> QueryForms(RE::StaticFunctionTag*, RE::TESForm* target,
+                                     std::string search, std::string plugin, std::int32_t page) {
+    if (!target) return {};
+    std::shared_ptr<const Snapshot> current;
+    { std::lock_guard lock(gate); current = catalogue; }
+    if (!current) return {};
+    auto original = current->items.find(target->GetFormID());
+    if (original == current->items.end()) return {};
+    auto result = current->catalogue.query(original->second, std::move(search), std::move(plugin),
+                                           static_cast<std::size_t>(std::max(0, page)));
+    std::vector<RE::TESForm*> forms;
+    forms.reserve(result.keys.size());
+    auto* data = RE::TESDataHandler::GetSingleton();
+    if (!data) return {};
+    for (const auto& key : result.keys) {
+        if (auto* form = data->LookupForm(key.localID, key.plugin)) forms.push_back(form);
+    }
+    return forms;
+}
 bool Register(RE::BSScript::IVirtualMachine* vm) {
     vm->RegisterFunction("RequestCatalogue", "JGJGTransmogNative", RequestCatalogue);
     vm->RegisterFunction("CatalogueCount", "JGJGTransmogNative", CatalogueCount);
@@ -138,6 +183,10 @@ bool Register(RE::BSScript::IVirtualMachine* vm) {
     vm->RegisterFunction("QueryNames", "JGJGTransmogNative", QueryNames);
     vm->RegisterFunction("QueryPlugins", "JGJGTransmogNative", QueryPlugins);
     vm->RegisterFunction("QueryPageCount", "JGJGTransmogNative", QueryPageCount);
+    vm->RegisterFunction("QueryForms", "JGJGTransmogNative", QueryForms);
+    vm->RegisterFunction("GetPlayerWornArmors", "JGJGTransmogNative", GetPlayerWornArmors);
+    vm->RegisterFunction("GetPlayerWornArmorNames", "JGJGTransmogNative", GetPlayerWornArmorNames);
+    jgjg::engine::RegisterArmorAppearanceFunctions(vm);
     return true;
 }
 }
@@ -151,9 +200,11 @@ SKSEPluginLoad(const SKSE::LoadInterface* skse) {
         spdlog::flush_on(spdlog::level::info);
     }
     SKSE::log::info("JGJGs Transmog System 0.1.0: read-only development catalogue, Steam 1.6.1170");
+    if (!jgjg::engine::InstallArmorAppearanceHook()) return false;
     SKSE::GetMessagingInterface()->RegisterListener([](SKSE::MessagingInterface::Message* message) {
         if (message->type == SKSE::MessagingInterface::kPreLoadGame || message->type == SKSE::MessagingInterface::kNewGame) {
             std::lock_guard lock(gate); ++generation; catalogue.reset();
+            jgjg::engine::ClearAllArmorAppearances();
         }
     });
     return SKSE::GetPapyrusInterface()->Register(Register);
