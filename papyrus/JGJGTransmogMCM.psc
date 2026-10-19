@@ -7,6 +7,8 @@ Int pluginOID
 Int browseOID
 Int applyOID
 Int clearOID
+Int previewOID
+Int cancelPreviewOID
 Int nextOID
 Int previousOID
 Int pageIndex = 0
@@ -31,7 +33,8 @@ Event OnPageReset(String page)
         AddHeaderOption("In-game test build")
         AddTextOption("Armor rendering", "Prototype")
         AddTextOption("Weapon rendering", "In development", OPTION_FLAG_DISABLED)
-        AddTextOption("Side-by-side 3D preview", "In development", OPTION_FLAG_DISABLED)
+        AddTextOption("In-game appearance preview", "Temporary on character")
+        AddTextOption("Side-by-side 3D viewer", "In development", OPTION_FLAG_DISABLED)
         AddTextOption("Save/load and presets", "In development", OPTION_FLAG_DISABLED)
         Return
     EndIf
@@ -43,6 +46,8 @@ Event OnPageReset(String page)
     pluginOID = AddMenuOption("Filter by mod", filterLabel)
     browseOID = AddMenuOption("Choose appearance", selectedName)
     applyOID = AddTextOption("Apply appearance", "Select")
+    previewOID = AddTextOption("Preview selected appearance", "Temporary")
+    cancelPreviewOID = AddTextOption("Cancel temporary preview", "Select")
     clearOID = AddTextOption("Restore original appearance", "Select")
     previousOID = AddTextOption("Previous page", "Select")
     nextOID = AddTextOption("Next page", "Select")
@@ -82,6 +87,20 @@ Event OnOptionSelect(Int option)
             ShowMessage("Armor appearance applied. Your equipped item and its stats were not changed. This build has no 3D preview yet.", False)
         Else
             ShowMessage("Could not apply that appearance. Choose armor with matching body slots.", False)
+        EndIf
+    ElseIf option == previewOID
+        If !targetArmor || !selectedAppearance
+            ShowMessage("Choose a worn armor item and an appearance first.", False)
+        ElseIf JGJGTransmogNative.PreviewArmorAppearance(targetArmor, selectedAppearance)
+            ShowMessage("Temporary preview is active on your character. Select Apply to keep it, or Cancel temporary preview to restore the saved appearance.", False)
+        Else
+            ShowMessage("Could not preview that appearance. Choose armor with matching body slots.", False)
+        EndIf
+    ElseIf option == cancelPreviewOID
+        If targetArmor && JGJGTransmogNative.CancelArmorPreview(targetArmor)
+            ShowMessage("Temporary preview cancelled.", False)
+        Else
+            ShowMessage("No temporary preview is active for this item.", False)
         EndIf
     ElseIf option == clearOID
         If targetArmor && JGJGTransmogNative.ClearArmorAppearance(targetArmor)
@@ -129,6 +148,9 @@ Event OnOptionMenuAccept(Int option, Int index)
         Form[] armors = JGJGTransmogNative.GetPlayerWornArmors()
         String[] names = JGJGTransmogNative.GetPlayerWornArmorNames()
         If index < armors.Length
+            If targetArmor
+                JGJGTransmogNative.CancelArmorPreview(targetArmor)
+            EndIf
             targetArmor = armors[index]
             If index < names.Length
                 targetLabel = names[index]
@@ -153,6 +175,7 @@ Event OnOptionMenuAccept(Int option, Int index)
         Form[] forms = JGJGTransmogNative.QueryForms(targetArmor, "", filterPlugin, pageIndex)
         String[] names = JGJGTransmogNative.QueryNames(targetArmor, "", filterPlugin, pageIndex)
         If index < forms.Length
+            JGJGTransmogNative.CancelArmorPreview(targetArmor)
             selectedAppearance = forms[index]
             If index < names.Length
                 selectedName = names[index]
