@@ -23,6 +23,10 @@ class PackageTests(unittest.TestCase):
             (p/'test.dll').write_text('not a DLL')
             with self.assertRaisesRegex(ValueError, 'PE binary'):
                 pkg.validate_runtime(p, m)
+    def test_mcm_test_requires_the_menu_plugin_and_both_scripts(self):
+        with tempfile.TemporaryDirectory() as d:
+            with self.assertRaisesRegex(ValueError, 'Missing MCM test file'):
+                pkg.validate_mcm_test(Path(d))
     def test_traversal_rejected(self):
         with tempfile.TemporaryDirectory() as d:
             with self.assertRaises(ValueError): pkg.archive(Path(d)/'bad.zip', {'../bad':b'x'})

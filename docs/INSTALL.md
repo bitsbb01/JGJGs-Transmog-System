@@ -2,6 +2,8 @@
 
 There is currently no playable mod package. SOURCE and DEVELOPER-ONLY downloads are not ready to install into Skyrim.
 
+The `MCM-TEST-ONLY` Actions artifact is an intermediate catalogue test build. It includes an ESL-flagged ESP-FE, compiled MCM scripts, and the native catalogue DLL. It requires Skyrim Steam 1.6.1170, the matching SKSE64 build, and SkyUI SE. Install it into a disposable MO2/Vortex profile and confirm that **JGJGs Transmog System** appears under Mod Configuration. This build only checks MCM registration and cached item browsing; it does not alter appearances or include the 3D preview.
+
 When a playable prerelease is published:
 
 1. Use Skyrim Steam 1.6.1170 with the matching SKSE64 build, SkyUI SE and Address Library's matching Anniversary Edition database.

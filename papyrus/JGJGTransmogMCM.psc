@@ -1,6 +1,7 @@
 Scriptname JGJGTransmogMCM extends SKI_ConfigBase
-; Development-only MCM source. Requires a quest attachment and compilation.
-; Does not claim to provide working appearance changes or 3D previews.
+; Catalogue test MCM. The build generates a Start Game Enabled quest plugin
+; and attaches this script plus SkyUI's player-load alias.
+; Appearance changes and 3D preview are not implemented in this milestone.
 Int rebuildOID
 Int browseOID
 Int nextOID
@@ -24,7 +25,7 @@ Event OnPageReset(String page)
         Return
     EndIf
     AddHeaderOption("Compatible appearance catalogue")
-    AddTextOption("Cached items", JGJGTransmogNative.CatalogueCount(), OPTION_FLAG_DISABLED)
+    AddTextOption("Cached items", JGJGTransmogNative.CatalogueCount() as String, OPTION_FLAG_DISABLED)
     rebuildOID = AddTextOption("Build / refresh catalogue", "Select")
     searchOID = AddInputOption("Search name", searchText)
     browseOID = AddMenuOption("Right-hand weapon appearances", "Browse")
@@ -35,7 +36,7 @@ EndEvent
 Event OnOptionSelect(Int option)
     If option == rebuildOID
         If JGJGTransmogNative.RequestCatalogue()
-            ShowMessage("Catalogue requested. Reopen this page after it finishes. This prototype does not change your equipment.", False)
+            ShowMessage("Catalogue requested. The list is built in the background; reopen this page when it finishes. This test build does not change equipment.", False)
         Else
             ShowMessage("Catalogue is already building.", False)
         EndIf

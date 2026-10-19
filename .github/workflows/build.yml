@@ -9,6 +9,49 @@ concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  mcm-test-assets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - uses: actions/checkout@v4
+        with:
+          repository: schlangster/skyui
+          path: tools/skyui-sdk
+      - uses: actions/checkout@v4
+        with:
+          repository: rethesda/papyrus-compiler-v
+          path: tools/papyrus-compiler-v
+      - uses: vlang/setup-v@v1.7
+        with:
+          version: 0c3183c
+          token: ${{ github.token }}
+      - name: Compile Papyrus MCM and native declarations
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/papyrus-headers package/Data/Scripts tools/papyrus-compiler-v/bin
+          cp tools/skyui-sdk/dist/Data/Scripts/Headers/*.psc build/papyrus-headers/
+          cp papyrus/headers/*.psc build/papyrus-headers/
+          (cd tools/papyrus-compiler-v && v -o bin/papyrus-compiler -prod -g -gc none compiler.v)
+          tools/papyrus-compiler-v/bin/papyrus-compiler compile -nocache -h build/papyrus-headers -i papyrus/JGJGTransmogNative.psc -o package/Data/Scripts
+          tools/papyrus-compiler-v/bin/papyrus-compiler compile -nocache -h build/papyrus-headers -i papyrus/JGJGTransmogMCM.psc -o package/Data/Scripts
+          python3 - <<'PY'
+          from pathlib import Path
+          for name in ('JGJGTransmogNative.pex', 'JGJGTransmogMCM.pex'):
+              p = Path('package/Data/Scripts') / name
+              if not p.is_file() or p.read_bytes()[:4] != bytes.fromhex('fa57c0de'):
+                  raise SystemExit(f'Papyrus compile did not produce a valid {name}')
+          PY
+      - name: Generate ESL-flagged ESP MCM quest
+        run: dotnet run --project tools/McmPluginGen/McmPluginGen.csproj --configuration Release -- package/Data/JGJGsTransmogSystem.esp
+      - uses: actions/upload-artifact@v4
+        with:
+          name: JGJGs-Transmog-System-MCM-assets
+          path: package/Data/*
+          if-no-files-found: error
   core-and-source:
     runs-on: ubuntu-latest
     steps:
@@ -27,9 +70,14 @@ jobs:
           path: dist/*
           if-no-files-found: error
   windows-prototype:
+    needs: [mcm-test-assets]
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: JGJGs-Transmog-System-MCM-assets
+          path: package/Data
       - name: Configure Windows x64 SKSE component
         shell: pwsh
         run: >-
@@ -43,9 +91,11 @@ jobs:
         run: ctest --test-dir build -C Release --output-on-failure
       - name: Package developer component (not a playable mod)
         run: python tools/package.py --mode developer --stage build/Release
+      - name: Package in-game MCM catalogue test (not a playable transmog mod)
+        run: python tools/package.py --mode mcm-test --stage package/Data
       - uses: actions/upload-artifact@v4
         with:
-          name: JGJGs-Transmog-System-DEVELOPER-ONLY
+          name: JGJGs-Transmog-System-MCM-TEST-ONLY
           path: dist/*
           if-no-files-found: error
   release-source:

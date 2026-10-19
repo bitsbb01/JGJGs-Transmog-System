@@ -34,6 +34,35 @@ def validate_runtime(stage, metadata):
         if p.suffix == '.esp' and head[:4] != b'TES4':
             raise ValueError('Invalid plugin header')
 
+def validate_mcm_test(stage):
+    """Accept only a complete MCM catalogue test payload, never a partial ZIP."""
+    required = [
+        'SKSE/Plugins/JGJGsTransmogSystem.dll',
+        'JGJGsTransmogSystem.esp',
+        'Scripts/JGJGTransmogMCM.pex',
+        'Scripts/JGJGTransmogNative.pex',
+    ]
+    entries = {}
+    for name in required:
+        p = stage/name
+        if not p.is_file() or p.stat().st_size == 0:
+            raise ValueError(f'Missing MCM test file: {name}')
+        data = p.read_bytes()
+        if name.endswith('.dll'):
+            if len(data) < 64 or data[:2] != b'MZ':
+                raise ValueError('MCM test DLL is not a PE binary')
+            offset = struct.unpack_from('<I', data, 60)[0]
+            if offset + 24 > len(data) or data[offset:offset+4] != b'PE\0\0' or struct.unpack_from('<H', data, offset+4)[0] != 0x8664:
+                raise ValueError('MCM test DLL is not Windows x64')
+        elif name.endswith('.pex') and data[:4] != bytes.fromhex('fa57c0de'):
+            raise ValueError(f'Invalid compiled Papyrus file: {name}')
+        elif name.endswith('.esp') and data[:4] != b'TES4':
+            raise ValueError('Invalid MCM test ESP header')
+        elif name.endswith('.esp') and not (struct.unpack_from('<I', data, 8)[0] & 0x200):
+            raise ValueError('MCM test plugin must be an ESL-flagged ESP-FE')
+        entries[name] = data
+    return entries
+
 def archive(path, entries):
     with zipfile.ZipFile(path, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=9) as z:
         for name, content in sorted(entries.items()):
@@ -46,7 +75,7 @@ def archive(path, entries):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--mode', choices=['source', 'developer', 'runtime'], required=True)
+    parser.add_argument('--mode', choices=['source', 'developer', 'mcm-test', 'runtime'], required=True)
     parser.add_argument('--stage', type=Path)
     parser.add_argument('--out', type=Path, default=ROOT/'dist')
     args = parser.parse_args()
@@ -68,6 +97,14 @@ def main():
         entries['developer-only/JGJGsTransmogSystem.dll'] = (args.stage/'JGJGsTransmogSystem.dll').read_bytes()
         entries['READ-ME-FIRST.txt'] = b'DEVELOPMENT COMPONENT ONLY. Not an installable transmog mod. No MCM quest, compiled scripts, appearance hooks, save persistence or 3D preview. Do not install as a playable release. See README.md in the repository.\n'
         suffix = 'DEVELOPER-ONLY'
+    elif args.mode == 'mcm-test':
+        if not args.stage:
+            raise ValueError('--stage is required')
+        entries.update(validate_mcm_test(args.stage))
+        entries['JGJG-MCM-TEST-ONLY.txt'] = (
+            b'TEST BUILD: SkyUI catalogue/MCM registration only. It does not apply weapon or armour appearances, save transmog data, or include the requested 3D preview. Use a disposable save. Requires Skyrim Steam 1.6.1170, matching SKSE, and SkyUI.\n'
+        )
+        suffix = 'MCM-TEST-ONLY'
     else:
         if not args.stage:
             raise ValueError('--stage is required')
