@@ -63,6 +63,10 @@ EndEvent
 Event OnOptionMenuOpen(Int option)
     If option == browseOID
         String[] names = JGJGTransmogNative.QueryNames(Game.GetPlayer().GetEquippedWeapon(), searchText, "", pageIndex)
+        If names.Length == 0
+            names = new String[1]
+            names[0] = "No compatible results; build the catalogue first"
+        EndIf
         SetMenuDialogOptions(names)
         SetMenuDialogStartIndex(0)
         SetMenuDialogDefaultIndex(0)

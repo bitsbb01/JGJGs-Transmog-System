@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 project(JGJGsTransmogSystem VERSION 0.1.0 LANGUAGES CXX)
 option(JGJG_BUILD_SKSE "Build the Windows SKSE catalogue prototype" OFF)
 add_library(jgjg_core INTERFACE)

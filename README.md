@@ -8,7 +8,7 @@
 
 Version tags beginning with `v` publish a public **source prerelease** on [Releases](https://github.com/bitsbb01/JGJGs-Transmog-System/releases), after both build jobs succeed. These source downloads do not require a mod manager and are not playable packages.
 
-The runtime packager supports a Data-relative ZIP suitable for MO2, Vortex and manual installation, plus SHA-256 checksums. It deliberately refuses to package unfinished releases or missing/invalid DLL, PEX and ESP files. A playable release workflow will be enabled only after those components exist and are verified. Current source/developer artifacts are not offered as installable mods.
+The runtime packager supports a Data-relative ZIP suitable for MO2, Vortex and manual installation, plus SHA-256 checksums. It deliberately refuses to package unfinished releases or missing/invalid DLL, PEX and ESP files. The separate **Package playable mod** workflow builds, checks and publishes installable prerelease ZIPs, but stops immediately until those components exist and are marked verified. Current source/developer artifacts are not offered as installable mods.
 
 ## Agreed behaviour
 

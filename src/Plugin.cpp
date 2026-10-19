@@ -8,7 +8,8 @@
 
 namespace {
 std::mutex gate;
-std::shared_ptr<const jgjg::Catalogue> catalogue;
+struct Snapshot { jgjg::Catalogue catalogue; std::map<RE::FormID, jgjg::Item> items; };
+std::shared_ptr<const Snapshot> catalogue;
 std::atomic<bool> building{false};
 std::atomic<unsigned> generation{0};
 std::optional<jgjg::Kind> weaponKind(RE::TESObjectWEAP* weapon) {
@@ -59,13 +60,17 @@ bool RequestCatalogue(RE::StaticFunctionTag*) {
             auto* data = RE::TESDataHandler::GetSingleton();
             auto* player = RE::PlayerCharacter::GetSingleton();
             if (!data || !player || !player->GetActorBase()) { building = false; return; }
-            std::vector<jgjg::Item> snapshot;
-            for (auto* f : data->GetFormArray<RE::TESObjectWEAP>()) if (auto item = describe(f, player)) snapshot.push_back(std::move(*item));
-            for (auto* f : data->GetFormArray<RE::TESObjectARMO>()) if (auto item = describe(f, player)) snapshot.push_back(std::move(*item));
+            std::map<RE::FormID, jgjg::Item> snapshot;
+            for (auto* f : data->GetFormArray<RE::TESObjectWEAP>()) if (auto item = describe(f, player)) snapshot.emplace(f->GetFormID(), std::move(*item));
+            for (auto* f : data->GetFormArray<RE::TESObjectARMO>()) if (auto item = describe(f, player)) snapshot.emplace(f->GetFormID(), std::move(*item));
             // Only detached, copied values cross threads. Never touch game forms on this worker.
             std::thread([epoch, input = std::move(snapshot)]() mutable {
                 try {
-                    auto result = std::make_shared<jgjg::Catalogue>(); result->rebuild(std::move(input));
+                    auto result = std::make_shared<Snapshot>();
+                    result->items = std::move(input);
+                    std::vector<jgjg::Item> entries; entries.reserve(result->items.size());
+                    for (const auto& [id, item] : result->items) entries.push_back(item);
+                    result->catalogue.rebuild(std::move(entries));
                     std::lock_guard lock(gate);
                     if (generation.load() == epoch) catalogue = std::move(result);
                 } catch (...) { SKSE::log::error("Catalogue construction failed"); }
@@ -77,22 +82,24 @@ bool RequestCatalogue(RE::StaticFunctionTag*) {
 }
 std::int32_t CatalogueCount(RE::StaticFunctionTag*) {
     std::lock_guard lock(gate);
-    return catalogue ? static_cast<std::int32_t>(catalogue->size()) : 0;
+    return catalogue ? static_cast<std::int32_t>(catalogue->catalogue.size()) : 0;
 }
 bool IsBuilding(RE::StaticFunctionTag*) { return building.load(); }
 std::string Status(RE::StaticFunctionTag*) {
     return "Development catalogue only: appearance application and 3D preview are not implemented.";
 }
 std::vector<std::string> QueryNames(RE::StaticFunctionTag*, RE::TESForm* target, std::string search, std::string plugin, std::int32_t page) {
-    // Ordinary Papyrus native call: do not register this function as tasklet-callable.
-    auto original = describe(target, RE::PlayerCharacter::GetSingleton());
-    if (!original) return {};
-    std::shared_ptr<const jgjg::Catalogue> current;
+    // Only immutable cached metadata is queried here. No player/model access
+    // from the Papyrus VM thread. Form ID is stable while the VM holds its form.
+    if (!target) return {};
+    std::shared_ptr<const Snapshot> current;
     { std::lock_guard lock(gate); current = catalogue; }
     if (!current) return {};
-    auto found = current->query(*original, std::move(search), std::move(plugin), static_cast<std::size_t>(std::max(0, page)));
+    auto original = current->items.find(target->GetFormID());
+    if (original == current->items.end()) return {};
+    auto found = current->catalogue.query(original->second, std::move(search), std::move(plugin), static_cast<std::size_t>(std::max(0, page)));
     std::vector<std::string> names;
-    for (auto& key : found.keys) if (auto* item = current->find(key)) names.push_back(item->name + " [" + key.plugin + "]");
+    for (auto& key : found.keys) if (auto* item = current->catalogue.find(key)) names.push_back(item->name + " [" + key.plugin + "]");
     return names;
 }
 bool Register(RE::BSScript::IVirtualMachine* vm) {

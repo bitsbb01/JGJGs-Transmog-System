@@ -1,0 +1,71 @@
+name: Package playable mod (readiness gated)
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Version tag, e.g. v0.1.0-alpha.1'
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: windows-2022
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify release readiness and tag
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        shell: python
+        run: |
+          import json, os, re
+          from pathlib import Path
+          metadata = json.loads(Path('release.json').read_text())
+          if not metadata['release_ready'] or not all(metadata['required_features'].values()):
+              raise SystemExit('No playable package: required mod features are not finished.')
+          tag = os.environ['RELEASE_TAG']
+          if not re.fullmatch(r'v[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.-]+)?', tag):
+              raise SystemExit('Invalid release tag')
+          if tag != 'v' + metadata['version']:
+              raise SystemExit('Tag must match release.json version')
+      - name: Configure Windows x64
+        shell: pwsh
+        run: >-
+          cmake -S . -B build -A x64 -DJGJG_BUILD_SKSE=ON
+          -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+          -DVCPKG_TARGET_TRIPLET=x64-windows-static
+      - name: Compile and test
+        shell: pwsh
+        run: |
+          cmake --build build --config Release --parallel 3
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ctest --test-dir build -C Release --output-on-failure
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m unittest discover -s tests -p 'test_*.py'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Assemble verified runtime files
+        shell: pwsh
+        run: |
+          # Compiled scripts, quest ESP and preview assets must be provided by
+          # the future runtime asset build under package/Data. Never fake them.
+          if (!(Test-Path package/Data)) { throw 'Runtime asset stage is missing' }
+          New-Item -ItemType Directory -Force package/Data/SKSE/Plugins | Out-Null
+          Copy-Item build/Release/JGJGsTransmogSystem.dll package/Data/SKSE/Plugins/
+          python tools/package.py --mode runtime --stage package/Data
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: JGJGs-Transmog-System-installable
+          path: dist/*
+          if-no-files-found: error
+      - name: Publish downloadable prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        shell: pwsh
+        run: |
+          $assets = Get-ChildItem dist -File | Select-Object -ExpandProperty FullName
+          gh release create $env:RELEASE_TAG @assets --target $env:GITHUB_SHA --prerelease --title "JGJGs Transmog System $env:RELEASE_TAG" --notes-file docs/INSTALL.md
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

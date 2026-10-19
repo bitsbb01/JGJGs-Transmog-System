@@ -21,4 +21,4 @@ The public okan1100/Skyrim-Transmog-System code was reviewed, but is not copied 
 
 Source and developer packages are intentionally labelled. `release.json` is not evidence by itself: set a feature true only after its implementation and validation notes are committed. The runtime packager validates file presence and signatures, but cannot prove that an ESP quest or compiled script works in game.
 
-A future runtime release job must consume the verified runtime stage, call `package.py --mode runtime`, and attach that ZIP and checksums to a prerelease. Do not point ordinary users at the current developer DLL.
+The readiness-gated runtime release job consumes `package/Data`, calls `package.py --mode runtime`, and attaches that ZIP and checksums to a prerelease. Runtime asset compilation/staging remains to be implemented. Do not point ordinary users at the current developer DLL.

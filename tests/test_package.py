@@ -10,6 +10,7 @@ spec.loader.exec_module(pkg)
 class PackageTests(unittest.TestCase):
     def test_unfinished_cannot_be_packaged_as_mod(self):
         m = json.loads((pkg.ROOT/'release.json').read_text())
+        m['release_ready'] = False
         with tempfile.TemporaryDirectory() as d:
             with self.assertRaisesRegex(ValueError, 'unfinished'):
                 pkg.validate_runtime(Path(d), m)
