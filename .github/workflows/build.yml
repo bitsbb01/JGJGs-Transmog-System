@@ -6,8 +6,11 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: build-${{ github.ref }}
-  cancel-in-progress: true
+  # Keep commit-triggered validation independent. Contents-API edits create
+  # one commit per file, and cancelling mid-CMake fetch can strand the Windows
+  # runner before it returns its build result.
+  group: build-${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
+  cancel-in-progress: false
 jobs:
   mcm-test-assets:
     runs-on: ubuntu-latest
