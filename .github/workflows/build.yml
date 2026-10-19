@@ -1,0 +1,71 @@
+name: Build and package
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  core-and-source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and test portable core
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --parallel 2
+          ctest --test-dir build --output-on-failure
+          python3 -m unittest discover -s tests -p 'test_*.py'
+      - name: Package source
+        run: python3 tools/package.py --mode source
+      - uses: actions/upload-artifact@v4
+        with:
+          name: JGJGs-Transmog-System-source
+          path: dist/*
+          if-no-files-found: error
+  windows-prototype:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure Windows x64 SKSE component
+        shell: pwsh
+        run: >-
+          cmake -S . -B build -A x64
+          -DJGJG_BUILD_SKSE=ON
+          -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+          -DVCPKG_TARGET_TRIPLET=x64-windows-static
+      - name: Compile
+        run: cmake --build build --config Release --parallel 3
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
+      - name: Package developer component (not a playable mod)
+        run: python tools/package.py --mode developer --stage build/Release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: JGJGs-Transmog-System-DEVELOPER-ONLY
+          path: dist/*
+          if-no-files-found: error
+  release-source:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [core-and-source, windows-prototype]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: JGJGs-Transmog-System-source
+          path: dist
+      - name: Publish clearly labelled source prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: >-
+          gh release create "$RELEASE_TAG" dist/*
+          --verify-tag --prerelease
+          --title "JGJGs Transmog System $RELEASE_TAG — source preview"
+          --notes-file docs/SOURCE-RELEASE.md

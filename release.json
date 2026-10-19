@@ -1,0 +1,20 @@
+{
+  "name": "JGJGs Transmog System",
+  "version": "0.1.0-dev.1",
+  "runtime": "1.6.1170",
+  "release_ready": false,
+  "required_features": {
+    "weapon_transmog": false,
+    "armour_transmog": false,
+    "mcm_integration": false,
+    "save_load_persistence": false,
+    "favourite_presets": false,
+    "original_selected_3d_preview": false
+  },
+  "required_files": [
+    "SKSE/Plugins/JGJGsTransmogSystem.dll",
+    "Scripts/JGJGTransmogNative.pex",
+    "Scripts/JGJGTransmogMCM.pex",
+    "JGJGsTransmogSystem.esp"
+  ]
+}
