@@ -11,3 +11,5 @@ Form[] Function GetPlayerWornArmors() Global Native
 String[] Function GetPlayerWornArmorNames() Global Native
 Bool Function SetArmorAppearance(Form original, Form appearance) Global Native
 Bool Function ClearArmorAppearance(Form original) Global Native
+Bool Function PreviewArmorAppearance(Form original, Form appearance) Global Native
+Bool Function CancelArmorPreview(Form original) Global Native
