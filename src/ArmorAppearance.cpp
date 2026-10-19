@@ -199,7 +199,8 @@ bool PreviewArmorAppearance(RE::TESForm* originalForm, RE::TESForm* appearanceFo
 	auto* original = originalForm ? originalForm->As<RE::TESObjectARMO>() : nullptr;
 	auto* appearance = appearanceForm ? appearanceForm->As<RE::TESObjectARMO>() : nullptr;
 	if (!original || !appearance || !original->GetPlayable() || !appearance->GetPlayable() ||
-	    !original->GetSlotMask() || original->GetSlotMask() != appearance->GetSlotMask()) return false;
+	    static_cast<std::uint32_t>(original->GetSlotMask()) == 0 ||
+	    original->GetSlotMask() != appearance->GetSlotMask()) return false;
 	{
 		std::lock_guard lock(overridesMutex);
 		previews.insert_or_assign(original->GetFormID(), appearance->GetFormID());
