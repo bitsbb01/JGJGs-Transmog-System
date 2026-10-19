@@ -108,6 +108,17 @@ namespace {
 		return removed;
 	}
 
+	bool PreviewArmorAppearanceNative(RE::StaticFunctionTag*, RE::TESForm* originalForm,
+	                                  RE::TESForm* appearanceForm)
+	{
+		return PreviewArmorAppearance(originalForm, appearanceForm);
+	}
+
+	bool CancelArmorPreviewNative(RE::StaticFunctionTag*, RE::TESForm* originalForm)
+	{
+		return CancelArmorPreview(originalForm);
+	}
+
 	void Save(SKSE::SerializationInterface* serialization)
 	{
 		std::lock_guard lock(overridesMutex);
@@ -233,8 +244,8 @@ bool RegisterArmorAppearanceFunctions(RE::BSScript::IVirtualMachine* vm)
 {
 	vm->RegisterFunction("SetArmorAppearance", "JGJGTransmogNative", SetArmorAppearanceNative);
 	vm->RegisterFunction("ClearArmorAppearance", "JGJGTransmogNative", ClearArmorAppearanceNative);
-	vm->RegisterFunction("PreviewArmorAppearance", "JGJGTransmogNative", [](RE::StaticFunctionTag*, RE::TESForm* original, RE::TESForm* appearance) { return PreviewArmorAppearance(original, appearance); });
-	vm->RegisterFunction("CancelArmorPreview", "JGJGTransmogNative", [](RE::StaticFunctionTag*, RE::TESForm* original) { return CancelArmorPreview(original); });
+	vm->RegisterFunction("PreviewArmorAppearance", "JGJGTransmogNative", PreviewArmorAppearanceNative);
+	vm->RegisterFunction("CancelArmorPreview", "JGJGTransmogNative", CancelArmorPreviewNative);
 	return true;
 }
 }  // namespace jgjg::engine
