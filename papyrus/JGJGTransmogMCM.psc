@@ -62,15 +62,7 @@ Event OnOptionMenuOpen(Int option)
     If option == pluginOID
         menuMode = 1
         Form target = Game.GetPlayer().GetEquippedWeapon()
-        String[] mods = JGJGTransmogNative.QueryPlugins(target)
-        String[] options = new String[mods.Length + 1]
-        options[0] = "All mods"
-        Int i = 0
-        While i < mods.Length
-            options[i + 1] = mods[i]
-            i += 1
-        EndWhile
-        SetMenuDialogOptions(options)
+        SetMenuDialogOptions(JGJGTransmogNative.QueryPlugins(target))
         SetMenuDialogStartIndex(0)
         SetMenuDialogDefaultIndex(0)
     ElseIf option == browseOID
@@ -92,8 +84,8 @@ Event OnOptionMenuAccept(Int option, Int index)
             filterLabel = "All mods"
         Else
             String[] mods = JGJGTransmogNative.QueryPlugins(Game.GetPlayer().GetEquippedWeapon())
-            If index <= mods.Length
-                filterPlugin = mods[index - 1]
+            If index < mods.Length
+                filterPlugin = mods[index]
                 filterLabel = filterPlugin
             EndIf
         EndIf

@@ -6,6 +6,7 @@
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace jgjg {
@@ -99,6 +100,34 @@ inline Plan plan(const Catalogue& catalogue, const std::vector<Equipped>& equipp
     }
     return result;
 }
+// Visual overrides are keyed by the currently occupied equipment location and
+// retain the real form key. They are independent of inventory ownership,
+// enchantments, tempering, charge, and item statistics.
+struct VisualOverride { Key original; Key appearance; };
+class AppearanceState {
+    std::map<std::string, VisualOverride> active_;
+public:
+    bool commit(const Plan& plan) {
+        auto next = active_;
+        std::map<std::string, bool> seen;
+        for (const auto& change : plan.changes) {
+            if (change.location.empty() || change.expectedOriginal.plugin.empty() ||
+                change.appearance.plugin.empty() || seen.contains(change.location)) return false;
+            seen[change.location] = true;
+            next.insert_or_assign(change.location, VisualOverride{change.expectedOriginal, change.appearance});
+        }
+        active_.swap(next);
+        return true;
+    }
+    const Key* resolve(std::string_view location, const Key& equippedOriginal) const {
+        auto found = active_.find(std::string(location));
+        if (found == active_.end() || found->second.original != equippedOriginal) return nullptr;
+        return &found->second.appearance;
+    }
+    bool clear(std::string_view location) { return active_.erase(std::string(location)) != 0; }
+    void reset() { active_.clear(); }
+    const std::map<std::string, VisualOverride>& entries() const { return active_; }
+};
 // A preview is only a plan. It never changes equipment or the applied map.
 class Selection {
     std::optional<Plan> pending_;

@@ -23,6 +23,19 @@ int main() {
     CHECK(c.query(sword,"missing","",0).keys.empty());
     auto p = plan(c, {{"hand:right",sword}}, {{"hand:right",{"Skyrim.esm",5}}, {"hand:left",axe.key}});
     CHECK(p.changes.size() == 1 && p.skipped.size() == 1);
+    AppearanceState looks;
+    CHECK(looks.resolve("hand:right", sword.key) == nullptr);
+    CHECK(looks.commit(p));
+    auto* selectedLook = looks.resolve("hand:right", sword.key);
+    CHECK(selectedLook && selectedLook->localID == 5);
+    // The real equipped form remains authoritative; changing gear stops the
+    // old slot appearance from being applied to a different item.
+    CHECK(looks.resolve("hand:right", axe.key) == nullptr);
+    Plan invalid = p;
+    invalid.changes.push_back(invalid.changes.front());
+    CHECK(!looks.commit(invalid));
+    CHECK(looks.resolve("hand:right", sword.key) && looks.clear("hand:right"));
+    CHECK(looks.resolve("hand:right", sword.key) == nullptr);
     struct Backend { int calls{}; bool succeeds{true}; bool commit(const Plan&) { ++calls; return succeeds; } } backend;
     Selection selection; selection.stage(p);
     CHECK(backend.calls == 0);

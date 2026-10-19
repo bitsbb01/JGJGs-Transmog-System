@@ -115,7 +115,8 @@ std::vector<std::string> QueryPlugins(RE::StaticFunctionTag*, RE::TESForm* targe
             sorted.try_emplace(jgjg::folded(item.key.plugin), item.key.plugin);
     }
     std::vector<std::string> names;
-    names.reserve(sorted.size());
+    names.reserve(sorted.size() + 1);
+    names.push_back("All mods");
     for (auto& [foldedName, displayName] : sorted) names.push_back(displayName);
     return names;
 }
