@@ -112,6 +112,13 @@ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+SafetyHook
+==========
+
+SafetyHook is used for the guarded Skyrim armor-model detour. It is licensed
+under the Boost Software License 1.0. Source and license:
+https://github.com/cursey/safetyhook
+
 McmPluginGen implementation reference
 ======================================
 
