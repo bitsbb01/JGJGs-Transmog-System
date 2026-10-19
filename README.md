@@ -27,14 +27,16 @@ The runtime packager supports a Data-relative ZIP suitable for MO2, Vortex and m
 |---|---|
 | Catalogue, filtering and pagination | Implemented and tested with synthetic data |
 | Preset planning and staged selection | Implemented and tested; in-memory only |
-| Windows SKSE catalogue adapter | Read-only development component; CI build status shown in Actions |
-| MCM | Papyrus source draft only; not compiled or attached to a quest |
-| Visual appearance hooks | Not implemented |
-| Save/load persistence | Not implemented |
-| Side-by-side 3D preview | Feasibility/prototype work outstanding |
-| Playable package | Blocked until missing components are implemented |
+| Catalogue and compatibility filters | Implemented; portable tests cover the core and Windows CI builds the SKSE adapter |
+| Player armor appearance hook | Implemented for Steam 1.6.1170; requires in-game validation |
+| Apply, restore and temporary on-character preview | Implemented for armor; requires in-game validation |
+| Armor save/load | Implemented through SKSE serialization; requires in-game validation |
+| MCM test assets | Compiled in CI and attached to an ESL-flagged test ESP; requires in-game validation |
+| Weapon appearances and outfit favourites | Not implemented |
+| Side-by-side 3D preview | Not implemented; temporary preview changes the player's visible armor only |
+| Complete playable package | Not ready; release gate remains closed pending missing features and game tests |
 
-The runtime adapter snapshots form metadata on the game task queue, then sorts copied data on a worker. Snapshot cost, race changes and browsing performance need in-game measurement. Synthetic core tests are not game benchmarks. The adapter does not modify inventory or install rendering hooks.
+The catalogue adapter snapshots form metadata on the game task queue, then sorts copied data on a worker. The armor hook changes only the player's rendered armor and does not replace inventory items. Snapshot cost, race changes, equipment refresh, serialization and MCM behavior need in-game measurement. Synthetic core tests are not game benchmarks.
 
 ## Dependencies
 

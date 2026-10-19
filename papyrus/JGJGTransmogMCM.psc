@@ -1,5 +1,5 @@
 Scriptname JGJGTransmogMCM extends SKI_ConfigBase
-; Armor appearance application test. The selected form is used only by the
+; Armor appearance test interface. The selected form is used only by the
 ; player's armor render hook; inventory and equipment are left untouched.
 Int rebuildOID
 Int targetOID
@@ -11,10 +11,12 @@ Int previewOID
 Int cancelPreviewOID
 Int nextOID
 Int previousOID
+Int searchOID
 Int pageIndex = 0
 Int menuMode = 0
 String filterPlugin = ""
 String filterLabel = "All mods"
+String searchFilter = ""
 String selectedName = "None"
 String targetLabel = "Select worn armor"
 Form targetArmor
@@ -30,12 +32,15 @@ EndEvent
 Event OnPageReset(String page)
     SetCursorFillMode(TOP_TO_BOTTOM)
     If page == "Development status"
-        AddHeaderOption("In-game test build")
-        AddTextOption("Armor rendering", "Prototype")
-        AddTextOption("Weapon rendering", "In development", OPTION_FLAG_DISABLED)
-        AddTextOption("In-game appearance preview", "Temporary on character")
-        AddTextOption("Side-by-side 3D viewer", "In development", OPTION_FLAG_DISABLED)
-        AddTextOption("Save/load and presets", "In development", OPTION_FLAG_DISABLED)
+        AddHeaderOption("Armor test build")
+        AddTextOption("Armor appearance changes", "Test build")
+        AddTextOption("Apply / restore", "Available")
+        AddTextOption("Save / load armor changes", "Implemented; test in game")
+        AddTextOption("Temporary appearance preview", "On character")
+        AddHeaderOption("Still in development")
+        AddTextOption("Weapon appearances", "Not included", OPTION_FLAG_DISABLED)
+        AddTextOption("Side-by-side 3D viewer", "Not included", OPTION_FLAG_DISABLED)
+        AddTextOption("Favourite outfits", "Not included", OPTION_FLAG_DISABLED)
         Return
     EndIf
 
@@ -44,6 +49,7 @@ Event OnPageReset(String page)
     rebuildOID = AddTextOption("Build / refresh catalogue", "Select")
     targetOID = AddMenuOption("Worn armor to change", targetLabel)
     pluginOID = AddMenuOption("Filter by mod", filterLabel)
+    searchOID = AddInputOption("Search armor names", searchFilter)
     browseOID = AddMenuOption("Choose appearance", selectedName)
     applyOID = AddTextOption("Apply appearance", "Select")
     previewOID = AddTextOption("Preview selected appearance", "Temporary")
@@ -53,13 +59,12 @@ Event OnPageReset(String page)
     nextOID = AddTextOption("Next page", "Select")
     Int pageCount = 1
     If targetArmor
-        pageCount = JGJGTransmogNative.QueryPageCount(targetArmor, filterPlugin)
+        pageCount = JGJGTransmogNative.QueryPageCount(targetArmor, searchFilter, filterPlugin)
         If pageCount < 1
             pageCount = 1
         EndIf
     EndIf
     AddTextOption("Catalogue page", (pageIndex + 1) as String + " / " + pageCount as String, OPTION_FLAG_DISABLED)
-    AddTextOption("Preview", "Not included in this build", OPTION_FLAG_DISABLED)
 EndEvent
 
 Event OnOptionSelect(Int option)
@@ -75,7 +80,7 @@ Event OnOptionSelect(Int option)
         EndIf
     ElseIf option == nextOID
         If targetArmor
-            Int pageCount = JGJGTransmogNative.QueryPageCount(targetArmor, filterPlugin)
+            Int pageCount = JGJGTransmogNative.QueryPageCount(targetArmor, searchFilter, filterPlugin)
             If pageIndex + 1 < pageCount
                 pageIndex += 1
             EndIf
@@ -84,7 +89,7 @@ Event OnOptionSelect(Int option)
         If !targetArmor || !selectedAppearance
             ShowMessage("Choose a worn armor item and an appearance first.", False)
         ElseIf JGJGTransmogNative.SetArmorAppearance(targetArmor, selectedAppearance)
-            ShowMessage("Armor appearance applied. Your equipped item and its stats were not changed. This build has no 3D preview yet.", False)
+            ShowMessage("Armor appearance applied. Your equipped item and its stats were not changed.", False)
         Else
             ShowMessage("Could not apply that appearance. Choose armor with matching body slots.", False)
         EndIf
@@ -114,6 +119,14 @@ Event OnOptionSelect(Int option)
     ForcePageReset()
 EndEvent
 
+Event OnOptionInputAccept(Int option, String value)
+    If option == searchOID
+        searchFilter = value
+        pageIndex = 0
+        ForcePageReset()
+    EndIf
+EndEvent
+
 Event OnOptionMenuOpen(Int option)
     If option == targetOID
         menuMode = 1
@@ -132,7 +145,7 @@ Event OnOptionMenuOpen(Int option)
         SetMenuDialogDefaultIndex(0)
     ElseIf option == browseOID && targetArmor
         menuMode = 3
-        String[] names = JGJGTransmogNative.QueryNames(targetArmor, "", filterPlugin, pageIndex)
+        String[] names = JGJGTransmogNative.QueryNames(targetArmor, searchFilter, filterPlugin, pageIndex)
         If names.Length == 0
             names = new String[1]
             names[0] = "No compatible results; build the catalogue first"
@@ -172,8 +185,8 @@ Event OnOptionMenuAccept(Int option, Int index)
         EndIf
         pageIndex = 0
     ElseIf option == browseOID && menuMode == 3 && targetArmor
-        Form[] forms = JGJGTransmogNative.QueryForms(targetArmor, "", filterPlugin, pageIndex)
-        String[] names = JGJGTransmogNative.QueryNames(targetArmor, "", filterPlugin, pageIndex)
+        Form[] forms = JGJGTransmogNative.QueryForms(targetArmor, searchFilter, filterPlugin, pageIndex)
+        String[] names = JGJGTransmogNative.QueryNames(targetArmor, searchFilter, filterPlugin, pageIndex)
         If index < forms.Length
             JGJGTransmogNative.CancelArmorPreview(targetArmor)
             selectedAppearance = forms[index]
