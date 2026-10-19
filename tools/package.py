@@ -101,10 +101,10 @@ def main():
         if not args.stage:
             raise ValueError('--stage is required')
         entries.update(validate_mcm_test(args.stage))
-        entries['JGJG-MCM-TEST-ONLY.txt'] = (
-            b'TEST BUILD: SkyUI catalogue/MCM registration only. It does not apply weapon or armour appearances, save transmog data, or include the requested 3D preview. Use a disposable save. Requires Skyrim Steam 1.6.1170, matching SKSE, and SkyUI.\n'
+        entries['JGJG-ARMOR-TEST-ONLY.txt'] = (
+            b'TEST BUILD: Applies armor appearance overrides to the player through an SKSE render hook. Weapons, save/load persistence, favourite presets, and the requested side-by-side 3D preview are not included yet. Use a disposable MO2/Vortex profile and save. Requires Skyrim Steam 1.6.1170, matching SKSE, SkyUI, and Address Library.\n'
         )
-        suffix = 'MCM-TEST-ONLY'
+        suffix = 'ARMOR-TEST-ONLY'
     else:
         if not args.stage:
             raise ValueError('--stage is required')
