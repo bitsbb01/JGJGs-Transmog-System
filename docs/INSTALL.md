@@ -2,7 +2,7 @@
 
 There is currently no playable mod package. SOURCE and DEVELOPER-ONLY downloads are not ready to install into Skyrim.
 
-The `MCM-TEST-ONLY` Actions artifact is an intermediate catalogue test build. It includes an ESL-flagged ESP-FE, compiled MCM scripts, and the native catalogue DLL. It requires Skyrim Steam 1.6.1170, the matching SKSE64 build, and SkyUI SE. Install it into a disposable MO2/Vortex profile and confirm that **JGJGs Transmog System** appears under Mod Configuration. This build only checks MCM registration and cached item browsing; it does not alter appearances or include the 3D preview.
+The `ARMOR-TEST-ONLY` Actions artifact is an intermediate test build. It includes an ESL-flagged ESP-FE, compiled MCM scripts, and the native SKSE plugin. It adds a player-only armor appearance hook with MCM selection and apply/restore controls. Weapons, save/load persistence, favourite presets and the side-by-side 3D preview are not implemented in this test stage. Install only into a disposable MO2/Vortex profile and save. Requires Skyrim Steam 1.6.1170, matching SKSE64, SkyUI SE, and the matching Address Library database.
 
 When a playable prerelease is published:
 
@@ -14,4 +14,4 @@ When a playable prerelease is published:
 
 First tests must use a disposable test save/profile. Test changes, restoring originals, save/reload, dual wielding, armour slots, custom enchantments and tempering. Report the log and exact steps; do not assume successful compilation means in-game validation.
 
-The custom 3D original/selected comparison remains a prototype requirement. No preview framework is bundled or required at this stage.
+The custom 3D original/selected comparison remains under development.
