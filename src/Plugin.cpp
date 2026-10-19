@@ -90,7 +90,7 @@ std::int32_t CatalogueCount(RE::StaticFunctionTag*) {
 }
 bool IsBuilding(RE::StaticFunctionTag*) { return building.load(); }
 std::string Status(RE::StaticFunctionTag*) {
-    return "Development catalogue only: appearance application and 3D preview are not implemented.";
+	return "Player armor appearances with save support and temporary on-character preview. Side-by-side 3D viewer and weapon appearances are still in development.";
 }
 std::vector<std::string> QueryNames(RE::StaticFunctionTag*, RE::TESForm* target, std::string search, std::string plugin, std::int32_t page) {
     // Only immutable cached metadata is queried here. No player/model access
@@ -199,12 +199,15 @@ SKSEPluginLoad(const SKSE::LoadInterface* skse) {
         spdlog::set_default_logger(std::make_shared<spdlog::logger>("JGJG", sink));
         spdlog::flush_on(spdlog::level::info);
     }
-    SKSE::log::info("JGJGs Transmog System 0.1.0: read-only development catalogue, Steam 1.6.1170");
+    SKSE::log::info("JGJGs Transmog System 0.1.0: player armor appearance prototype, Steam 1.6.1170");
     if (!jgjg::engine::InstallArmorAppearanceHook()) return false;
+    if (!jgjg::engine::InstallAppearanceSerialization()) return false;
     SKSE::GetMessagingInterface()->RegisterListener([](SKSE::MessagingInterface::Message* message) {
         if (message->type == SKSE::MessagingInterface::kPreLoadGame || message->type == SKSE::MessagingInterface::kNewGame) {
             std::lock_guard lock(gate); ++generation; catalogue.reset();
             jgjg::engine::ClearAllArmorAppearances();
+        } else if (message->type == SKSE::MessagingInterface::kPostLoadGame) {
+            jgjg::engine::RefreshPlayerArmor();
         }
     });
     return SKSE::GetPapyrusInterface()->Register(Register);
