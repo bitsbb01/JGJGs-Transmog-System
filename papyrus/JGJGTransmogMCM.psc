@@ -11,12 +11,17 @@ Int previewOID
 Int cancelPreviewOID
 Int nextOID
 Int previousOID
+Int presetOID
+Int savePresetOID
+Int loadPresetOID
 Int pageIndex = 0
 Int menuMode = 0
+Int selectedPreset = 0
 String filterPlugin = ""
 String filterLabel = "All mods"
 String selectedName = "None"
 String targetLabel = "Select worn armor"
+String presetLabel = "Favorite 1"
 Form targetArmor
 Form selectedAppearance
 
@@ -33,12 +38,13 @@ Event OnPageReset(String page)
         AddHeaderOption("Armor test build")
         AddTextOption("Armor appearance changes", "Test build")
         AddTextOption("Apply / restore", "Available")
-        AddTextOption("Save / load armor changes", "Implemented; test in game")
+        AddTextOption("Save / load armor changes", "Test in game")
+        AddTextOption("Armor favorites", "Test build")
         AddTextOption("Temporary appearance preview", "On character")
         AddHeaderOption("Still in development")
         AddTextOption("Weapon appearances", "Not included", OPTION_FLAG_DISABLED)
         AddTextOption("Side-by-side 3D viewer", "Not included", OPTION_FLAG_DISABLED)
-        AddTextOption("Favourite outfits", "Not included", OPTION_FLAG_DISABLED)
+        AddTextOption("Combined armor and weapon outfits", "Not included", OPTION_FLAG_DISABLED)
         Return
     EndIf
 
@@ -52,6 +58,9 @@ Event OnPageReset(String page)
     previewOID = AddTextOption("Preview selected appearance", "Temporary")
     cancelPreviewOID = AddTextOption("Cancel temporary preview", "Select")
     clearOID = AddTextOption("Restore original appearance", "Select")
+    presetOID = AddMenuOption("Armor favorite", presetLabel)
+    savePresetOID = AddTextOption("Save current armor look", "Select")
+    loadPresetOID = AddTextOption("Load armor favorite", "Select")
     previousOID = AddTextOption("Previous page", "Select")
     nextOID = AddTextOption("Next page", "Select")
     Int pageCount = 1
@@ -112,6 +121,22 @@ Event OnOptionSelect(Int option)
         Else
             ShowMessage("No appearance override was set for that armor.", False)
         EndIf
+    ElseIf option == savePresetOID
+        If ShowMessage("Save the current armor appearances to " + presetLabel + "?", True)
+            If JGJGTransmogNative.SaveArmorPreset(selectedPreset)
+                ShowMessage("Saved " + presetLabel + ".", False)
+            Else
+                ShowMessage("Could not save that favorite slot.", False)
+            EndIf
+        EndIf
+    ElseIf option == loadPresetOID
+        If ShowMessage("Load " + presetLabel + "? This replaces the current armor appearance choices.", True)
+            If JGJGTransmogNative.LoadArmorPreset(selectedPreset)
+                ShowMessage("Loaded " + presetLabel + ".", False)
+            Else
+                ShowMessage("Could not load that favorite. A saved armor form may be missing or incompatible.", False)
+            EndIf
+        EndIf
     EndIf
     ForcePageReset()
 EndEvent
@@ -142,6 +167,11 @@ Event OnOptionMenuOpen(Int option)
         SetMenuDialogOptions(names)
         SetMenuDialogStartIndex(0)
         SetMenuDialogDefaultIndex(0)
+    ElseIf option == presetOID
+        menuMode = 4
+        SetMenuDialogOptions(JGJGTransmogNative.GetArmorPresetNames())
+        SetMenuDialogStartIndex(selectedPreset)
+        SetMenuDialogDefaultIndex(selectedPreset)
     EndIf
 EndEvent
 
@@ -181,6 +211,14 @@ Event OnOptionMenuAccept(Int option, Int index)
             selectedAppearance = forms[index]
             If index < names.Length
                 selectedName = names[index]
+            EndIf
+        EndIf
+    ElseIf option == presetOID && menuMode == 4
+        If index >= 0 && index < 10
+            selectedPreset = index
+            String[] names = JGJGTransmogNative.GetArmorPresetNames()
+            If index < names.Length
+                presetLabel = names[index]
             EndIf
         EndIf
     EndIf

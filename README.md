@@ -32,7 +32,8 @@ The runtime packager supports a Data-relative ZIP suitable for MO2, Vortex and m
 | Apply, restore and temporary on-character preview | Implemented for armor; requires in-game validation |
 | Armor save/load | Implemented through SKSE serialization; requires in-game validation |
 | MCM test assets | Compiled in CI and attached to an ESL-flagged test ESP; requires in-game validation |
-| Weapon appearances and outfit favourites | Not implemented |
+| Ten armor-only favorite slots | Implemented in the test build; fixed slot names and in-game save/load still need validation |
+| Weapon appearances and combined armor/weapon outfits | Not implemented |
 | Side-by-side 3D preview | Not implemented; temporary preview changes the player's visible armor only |
 | Complete playable package | Not ready; release gate remains closed pending missing features and game tests |
 

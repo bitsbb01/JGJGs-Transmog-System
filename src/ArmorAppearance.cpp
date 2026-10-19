@@ -10,6 +10,7 @@
 #include <array>
 #include <algorithm>
 #include <cstddef>
+#include <string>
 
 namespace jgjg::engine {
 namespace {
@@ -22,7 +23,19 @@ namespace {
 	SafetyHookInline applyArmorAddonHook;
 	constexpr std::uint32_t kSerializationUID = 0x4A475453;  // JGTS
 	constexpr std::uint32_t kAppearanceRecord = 0x41524D4F;  // ARMO
+	constexpr std::uint32_t kPresetRecord = 0x50525354;       // PRST
+	constexpr std::uint32_t kPresetBindingRecord = 0x50524244; // PRBD
 	struct AppearanceRecord { RE::FormID original; RE::FormID appearance; };
+	struct PresetHeaderRecord { std::uint32_t slot; char name[64]; };
+	struct PresetBindingRecord { std::uint32_t slot; RE::FormID original; RE::FormID appearance; };
+	struct ArmorPreset { std::string name; std::map<RE::FormID, RE::FormID> appearances; };
+	constexpr std::size_t kPresetCount = 10;
+	std::array<ArmorPreset, kPresetCount> presets;
+
+	std::string DefaultPresetName(std::size_t slot)
+	{
+		return "Favorite " + std::to_string(slot + 1);
+	}
 
 	bool IsPlayerBiped(const ActorWeightModel* model, const RE::PlayerCharacter* player)
 	{
@@ -119,6 +132,44 @@ namespace {
 		return CancelArmorPreview(originalForm);
 	}
 
+	bool SaveArmorPresetNative(RE::StaticFunctionTag*, std::int32_t slot)
+	{
+		if (slot < 0 || static_cast<std::size_t>(slot) >= kPresetCount) return false;
+		std::lock_guard lock(overridesMutex);
+		presets[slot].name = DefaultPresetName(static_cast<std::size_t>(slot));
+		presets[slot].appearances = overrides;
+		return true;
+	}
+
+	bool LoadArmorPresetNative(RE::StaticFunctionTag*, std::int32_t slot)
+	{
+		if (slot < 0 || static_cast<std::size_t>(slot) >= kPresetCount) return false;
+		std::map<RE::FormID, RE::FormID> restored;
+		{
+			std::lock_guard lock(overridesMutex);
+			for (const auto& [original, appearance] : presets[slot].appearances) {
+				auto* originalForm = RE::TESForm::LookupByID<RE::TESObjectARMO>(original);
+				auto* appearanceForm = RE::TESForm::LookupByID<RE::TESObjectARMO>(appearance);
+				if (!originalForm || !appearanceForm || originalForm->GetSlotMask() != appearanceForm->GetSlotMask()) return false;
+				restored.emplace(original, appearance);
+			}
+			overrides = std::move(restored);
+			previews.clear();
+		}
+		RefreshPlayerArmor();
+		return true;
+	}
+
+	std::vector<std::string> GetArmorPresetNamesNative(RE::StaticFunctionTag*)
+	{
+		std::lock_guard lock(overridesMutex);
+		std::vector<std::string> names;
+		names.reserve(presets.size());
+		for (std::size_t slot = 0; slot < presets.size(); ++slot)
+			names.push_back(presets[slot].name.empty() ? DefaultPresetName(slot) : presets[slot].name);
+		return names;
+	}
+
 	void Save(SKSE::SerializationInterface* serialization)
 	{
 		std::lock_guard lock(overridesMutex);
@@ -128,13 +179,54 @@ namespace {
 				SKSE::log::error("Failed to save armor appearance {:08X}", original);
 			}
 		}
+		for (std::size_t slot = 0; slot < presets.size(); ++slot) {
+			const auto& preset = presets[slot];
+			PresetHeaderRecord header{};
+			header.slot = static_cast<std::uint32_t>(slot);
+			const auto name = preset.name.empty() ? DefaultPresetName(slot) : preset.name;
+			std::copy_n(name.data(), std::min(name.size(), sizeof(header.name) - 1), header.name);
+			if (!serialization->WriteRecord(kPresetRecord, 1, header)) {
+				SKSE::log::error("Failed to save armor favorite {}", slot + 1);
+				continue;
+			}
+			for (const auto& [original, appearance] : preset.appearances) {
+				const PresetBindingRecord binding{ static_cast<std::uint32_t>(slot), original, appearance };
+				if (!serialization->WriteRecord(kPresetBindingRecord, 1, binding))
+					SKSE::log::error("Failed to save armor favorite {} binding {:08X}", slot + 1, original);
+			}
+		}
 	}
 
 	void Load(SKSE::SerializationInterface* serialization)
 	{
 		std::map<RE::FormID, RE::FormID> loaded;
+		std::array<ArmorPreset, kPresetCount> loadedPresets;
+		for (std::size_t slot = 0; slot < loadedPresets.size(); ++slot)
+			loadedPresets[slot].name = DefaultPresetName(slot);
 		std::uint32_t type{}, version{}, length{};
 		while (serialization->GetNextRecordInfo(type, version, length)) {
+			if (type == kPresetRecord && version == 1 && length == sizeof(PresetHeaderRecord)) {
+				PresetHeaderRecord header{};
+				if (serialization->ReadRecordData(header) == sizeof(header) && header.slot < loadedPresets.size()) {
+					header.name[sizeof(header.name) - 1] = '\0';
+					if (header.name[0]) loadedPresets[header.slot].name = header.name;
+				}
+				continue;
+			}
+			if (type == kPresetBindingRecord && version == 1 && length == sizeof(PresetBindingRecord)) {
+				PresetBindingRecord binding{};
+				if (serialization->ReadRecordData(binding) == sizeof(binding) && binding.slot < loadedPresets.size()) {
+					RE::FormID original{}, appearance{};
+					if (serialization->ResolveFormID(binding.original, original) &&
+						serialization->ResolveFormID(binding.appearance, appearance)) {
+						auto* originalForm = RE::TESForm::LookupByID<RE::TESObjectARMO>(original);
+						auto* appearanceForm = RE::TESForm::LookupByID<RE::TESObjectARMO>(appearance);
+						if (originalForm && appearanceForm && originalForm->GetSlotMask() == appearanceForm->GetSlotMask())
+							loadedPresets[binding.slot].appearances.insert_or_assign(original, appearance);
+					}
+				}
+				continue;
+			}
 			if (type != kAppearanceRecord || version != 1 || length != sizeof(AppearanceRecord)) {
 				std::array<std::byte, 256> discard{};
 				while (length > 0) {
@@ -158,6 +250,7 @@ namespace {
 		{
 			std::lock_guard lock(overridesMutex);
 			overrides = std::move(loaded);
+			presets = std::move(loadedPresets);
 			previews.clear();
 		}
 	}
@@ -238,6 +331,10 @@ void ClearAllArmorAppearances()
 	std::lock_guard lock(overridesMutex);
 	overrides.clear();
 	previews.clear();
+	for (std::size_t slot = 0; slot < presets.size(); ++slot) {
+		presets[slot].name = DefaultPresetName(slot);
+		presets[slot].appearances.clear();
+	}
 }
 
 bool RegisterArmorAppearanceFunctions(RE::BSScript::IVirtualMachine* vm)
@@ -246,6 +343,9 @@ bool RegisterArmorAppearanceFunctions(RE::BSScript::IVirtualMachine* vm)
 	vm->RegisterFunction("ClearArmorAppearance", "JGJGTransmogNative", ClearArmorAppearanceNative);
 	vm->RegisterFunction("PreviewArmorAppearance", "JGJGTransmogNative", PreviewArmorAppearanceNative);
 	vm->RegisterFunction("CancelArmorPreview", "JGJGTransmogNative", CancelArmorPreviewNative);
+	vm->RegisterFunction("SaveArmorPreset", "JGJGTransmogNative", SaveArmorPresetNative);
+	vm->RegisterFunction("LoadArmorPreset", "JGJGTransmogNative", LoadArmorPresetNative);
+	vm->RegisterFunction("GetArmorPresetNames", "JGJGTransmogNative", GetArmorPresetNamesNative);
 	return true;
 }
 }  // namespace jgjg::engine

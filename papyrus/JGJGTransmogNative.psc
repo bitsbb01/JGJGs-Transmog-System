@@ -13,3 +13,6 @@ Bool Function SetArmorAppearance(Form original, Form appearance) Global Native
 Bool Function ClearArmorAppearance(Form original) Global Native
 Bool Function PreviewArmorAppearance(Form original, Form appearance) Global Native
 Bool Function CancelArmorPreview(Form original) Global Native
+String[] Function GetArmorPresetNames() Global Native
+Bool Function SaveArmorPreset(Int slot) Global Native
+Bool Function LoadArmorPreset(Int slot) Global Native
