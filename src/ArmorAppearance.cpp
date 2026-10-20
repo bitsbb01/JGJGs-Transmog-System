@@ -31,6 +31,7 @@ namespace {
 	struct ArmorPreset { std::string name; std::map<RE::FormID, RE::FormID> appearances; };
 	constexpr std::size_t kPresetCount = 10;
 	std::array<ArmorPreset, kPresetCount> presets;
+	std::array<std::uint32_t, kPresetCount> presetInvalidCounts{};
 	std::uint32_t lastPresetSkipped{};
 
 	std::string DefaultPresetName(std::size_t slot)
@@ -154,6 +155,7 @@ namespace {
 		std::lock_guard lock(overridesMutex);
 		presets[slot].name = DefaultPresetName(static_cast<std::size_t>(slot));
 		presets[slot].appearances = overrides;
+		presetInvalidCounts[slot] = 0;
 		return true;
 	}
 
@@ -164,6 +166,7 @@ namespace {
 		std::uint32_t skipped{};
 		{
 			std::lock_guard lock(overridesMutex);
+			skipped = presetInvalidCounts[slot];
 			for (const auto& [original, appearance] : presets[slot].appearances) {
 				auto* originalForm = RE::TESForm::LookupByID<RE::TESObjectARMO>(original);
 				auto* appearanceForm = RE::TESForm::LookupByID<RE::TESObjectARMO>(appearance);
@@ -231,6 +234,7 @@ namespace {
 	{
 		std::map<RE::FormID, RE::FormID> loaded;
 		std::array<ArmorPreset, kPresetCount> loadedPresets;
+		std::array<std::uint32_t, kPresetCount> invalidBindings{};
 		for (std::size_t slot = 0; slot < loadedPresets.size(); ++slot)
 			loadedPresets[slot].name = DefaultPresetName(slot);
 		std::uint32_t type{}, version{}, length{};
@@ -253,6 +257,10 @@ namespace {
 						auto* appearanceForm = RE::TESForm::LookupByID<RE::TESObjectARMO>(appearance);
 						if (originalForm && appearanceForm && originalForm->GetSlotMask() == appearanceForm->GetSlotMask())
 							loadedPresets[binding.slot].appearances.insert_or_assign(original, appearance);
+						else
+							++invalidBindings[binding.slot];
+					} else {
+						++invalidBindings[binding.slot];
 					}
 				}
 				continue;
@@ -281,6 +289,7 @@ namespace {
 			std::lock_guard lock(overridesMutex);
 			overrides = std::move(loaded);
 			presets = std::move(loadedPresets);
+			presetInvalidCounts = invalidBindings;
 			previews.clear();
 			lastPresetSkipped = 0;
 		}
@@ -364,6 +373,7 @@ void ClearAllArmorAppearances()
 	overrides.clear();
 	previews.clear();
 	lastPresetSkipped = 0;
+	presetInvalidCounts.fill(0);
 	for (std::size_t slot = 0; slot < presets.size(); ++slot) {
 		presets[slot].name = DefaultPresetName(slot);
 		presets[slot].appearances.clear();
