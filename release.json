@@ -4,11 +4,11 @@
   "runtime": "1.6.1170",
   "release_ready": false,
   "required_features": {
-    "weapon_transmog": false,
-    "armour_transmog": false,
-    "mcm_integration": false,
-    "save_load_persistence": false,
-    "favourite_presets": false,
+    "weapon_transmog": true,
+    "armour_transmog": true,
+    "mcm_integration": true,
+    "save_load_persistence": true,
+    "favourite_presets": true,
     "original_selected_3d_preview": false
   },
   "required_files": [
