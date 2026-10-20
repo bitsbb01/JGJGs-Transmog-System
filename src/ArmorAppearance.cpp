@@ -76,7 +76,8 @@ namespace {
 		}
 		auto* appearance = RE::TESForm::LookupByID<RE::TESObjectARMO>(appearanceID);
 		if (!appearance || !appearance->GetPlayable() ||
-		    appearance->GetSlotMask() != original->GetSlotMask()) return nullptr;
+		    appearance->GetSlotMask() != original->GetSlotMask() ||
+		    !HasPlayerArmorModel(appearance)) return nullptr;
 		return appearance;
 	}
 
@@ -132,7 +133,7 @@ namespace {
 		{
 			std::lock_guard lock(overridesMutex);
 			removed = overrides.erase(original->GetFormID()) != 0;
-			previews.erase(original->GetFormID());
+			removed = previews.erase(original->GetFormID()) != 0 || removed;
 		}
 		if (removed) RefreshPlayerArmor();
 		return removed;
