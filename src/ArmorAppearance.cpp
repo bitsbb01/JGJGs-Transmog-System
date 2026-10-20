@@ -105,6 +105,25 @@ namespace {
 
 	void RefreshPlayerArmorImpl()
 	{
+		// The status page is meant to explain the most recent rebuild. Clear the
+		// previous run's counters first so old hook IDs cannot be mistaken for
+		// callbacks caused by the latest Apply/Preview operation.
+		diagnostics::armor.refreshRequests.store(0, std::memory_order_relaxed);
+		diagnostics::armor.equipmentUpdates.store(0, std::memory_order_relaxed);
+		diagnostics::armor.hookCalls.store(0, std::memory_order_relaxed);
+		diagnostics::armor.mapMatches.store(0, std::memory_order_relaxed);
+		diagnostics::armor.validAppearances.store(0, std::memory_order_relaxed);
+		diagnostics::armor.replacements.store(0, std::memory_order_relaxed);
+		diagnostics::armor.lastHookInput.store(0, std::memory_order_relaxed);
+		diagnostics::weapon.hookCalls.store(0, std::memory_order_relaxed);
+		diagnostics::weapon.validSlots.store(0, std::memory_order_relaxed);
+		diagnostics::weapon.items.store(0, std::memory_order_relaxed);
+		diagnostics::weapon.weapons.store(0, std::memory_order_relaxed);
+		diagnostics::weapon.mapMatches.store(0, std::memory_order_relaxed);
+		diagnostics::weapon.compatible.store(0, std::memory_order_relaxed);
+		diagnostics::weapon.replacements.store(0, std::memory_order_relaxed);
+		diagnostics::weapon.lastSlotItem.store(0, std::memory_order_relaxed);
+		diagnostics::weapon.lastWeapon.store(0, std::memory_order_relaxed);
 		diagnostics::armor.refreshRequests.fetch_add(1, std::memory_order_relaxed);
 		auto* player = RE::PlayerCharacter::GetSingleton();
 		if (!player) return;
