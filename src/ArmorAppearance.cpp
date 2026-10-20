@@ -1,5 +1,4 @@
 #include "ArmorAppearance.h"
-#include "ComparisonPreview.h"
 #include "WeaponAppearance.h"
 
 #include <RE/Skyrim.h>
@@ -16,13 +15,13 @@
 
 namespace jgjg::engine {
 namespace {
-	using ActorWeightModel = void;
 	constexpr REL::RelocationID kApplyArmorAddon{ 17392, 17792 };
 
 	std::map<RE::FormID, RE::FormID> overrides;
 	std::map<RE::FormID, RE::FormID> previews;
 	std::mutex overridesMutex;
 	SafetyHookInline applyArmorAddonHook;
+	thread_local bool refreshingPlayerAppearance{};
 	constexpr std::uint32_t kSerializationUID = 0x4A475453;  // JGTS
 	constexpr std::uint32_t kAppearanceRecord = 0x41524D4F;  // ARMO
 	constexpr std::uint32_t kPresetRecord = 0x50525354;       // PRST
@@ -63,13 +62,6 @@ namespace {
 		return false;
 	}
 
-	bool IsPlayerBiped(const ActorWeightModel* model, const RE::PlayerCharacter* player)
-	{
-		if (!model || !player) return false;
-		return model == reinterpret_cast<const ActorWeightModel*>(std::addressof(player->GetBiped1(false))) ||
-		       model == reinterpret_cast<const ActorWeightModel*>(std::addressof(player->GetBiped1(true)));
-	}
-
 	RE::TESObjectARMO* ResolveOverride(RE::TESObjectARMO* original)
 	{
 		if (!original) return nullptr;
@@ -92,10 +84,9 @@ namespace {
 	}
 
 	bool ApplyArmorAddonHook(RE::TESObjectARMO* armor, RE::TESRace* race,
-	                         ActorWeightModel* model, bool female)
+	                         void* model, bool female)
 	{
-		auto* player = RE::PlayerCharacter::GetSingleton();
-		if (armor && IsPlayerBiped(model, player)) {
+		if (armor && refreshingPlayerAppearance) {
 			if (auto* appearance = ResolveOverride(armor)) armor = appearance;
 		}
 		return applyArmorAddonHook.call<bool>(armor, race, model, female);
@@ -112,7 +103,10 @@ namespace {
 		static REL::Relocation<SetFlagFn> setFlag{ REL::RelocationID(38867, 39907) };
 		static REL::Relocation<UpdateEquipmentFn> updateEquipment{ REL::RelocationID(38404, 39395) };
 		setFlag(process, static_cast<std::uint8_t>(1u << 0));
+		const bool wasRefreshing = refreshingPlayerAppearance;
+		refreshingPlayerAppearance = true;
 		updateEquipment(process, player);
+		refreshingPlayerAppearance = wasRefreshing;
 	}
 
 	bool SetArmorAppearanceNative(RE::StaticFunctionTag*, RE::TESForm* originalForm,
@@ -178,12 +172,6 @@ namespace {
 	bool CancelWeaponPreviewNative(RE::StaticFunctionTag*, RE::TESForm* original)
 	{
 		return CancelWeaponPreview(original);
-	}
-
-	bool StartSideBySideComparisonNative(RE::StaticFunctionTag*, RE::TESForm* original,
-	                                     RE::TESForm* appearance)
-	{
-		return StartSideBySideComparison(original, appearance);
 	}
 
 	bool SaveArmorPresetNative(RE::StaticFunctionTag*, std::int32_t slot)
@@ -254,7 +242,6 @@ namespace {
 
 	void Save(SKSE::SerializationInterface* serialization)
 	{
-		EndSideBySideComparison();
 		std::lock_guard lock(overridesMutex);
 		const auto weaponOverrides = GetWeaponAppearanceOverrides();
 		for (const auto& [original, appearance] : overrides) {
@@ -293,7 +280,6 @@ namespace {
 
 	void Load(SKSE::SerializationInterface* serialization)
 	{
-		EndSideBySideComparison();
 		std::map<RE::FormID, RE::FormID> loaded;
 		WeaponAppearanceMap loadedWeapons;
 		std::array<ArmorPreset, kPresetCount> loadedPresets;
@@ -387,7 +373,6 @@ namespace {
 
 	void Revert(SKSE::SerializationInterface*)
 	{
-		EndSideBySideComparison();
 		ClearAllArmorAppearances();
 	}
 }
@@ -460,7 +445,6 @@ bool CancelArmorPreview(RE::TESForm* originalForm)
 
 void ClearAllArmorAppearances()
 {
-	EndSideBySideComparison();
 	{
 		std::lock_guard lock(overridesMutex);
 		overrides.clear();
@@ -490,7 +474,6 @@ bool RegisterArmorAppearanceFunctions(RE::BSScript::IVirtualMachine* vm)
 	vm->RegisterFunction("ClearWeaponAppearance", "JGJGTransmogNative", ClearWeaponAppearanceNative);
 	vm->RegisterFunction("PreviewWeaponAppearance", "JGJGTransmogNative", PreviewWeaponAppearanceNative);
 	vm->RegisterFunction("CancelWeaponPreview", "JGJGTransmogNative", CancelWeaponPreviewNative);
-	vm->RegisterFunction("StartSideBySideComparison", "JGJGTransmogNative", StartSideBySideComparisonNative);
 	return true;
 }
 }  // namespace jgjg::engine

@@ -9,7 +9,7 @@
     "mcm_integration": true,
     "save_load_persistence": true,
     "favourite_presets": true,
-    "original_selected_3d_preview": true
+    "original_selected_3d_preview": false
   },
   "required_files": [
     "SKSE/Plugins/JGJGsTransmogSystem.dll",

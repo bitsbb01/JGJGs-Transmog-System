@@ -9,7 +9,6 @@ Int applyOID
 Int clearOID
 Int previewOID
 Int cancelPreviewOID
-Int compareOID
 Int nextOID
 Int previousOID
 Int presetOID
@@ -44,7 +43,7 @@ Event OnPageReset(String page)
         AddTextOption("Weapon appearances", "Same-type swaps")
         AddTextOption("Save/load favorites", "Armor and weapons")
         AddTextOption("Temporary preview", "On character")
-        AddTextOption("Side-by-side 3D viewer", "In-game test")
+        AddTextOption("Appearance preview", "On character")
         Return
     EndIf
 
@@ -60,9 +59,8 @@ Event OnPageReset(String page)
     pluginOID = AddMenuOption("Filter by mod", filterLabel)
     browseOID = AddMenuOption("Choose appearance", selectedName)
     applyOID = AddTextOption("Apply appearance", "Select")
-    previewOID = AddTextOption("Preview selected appearance", "Temporary")
+    previewOID = AddTextOption("Preview selected appearance", "On character")
     cancelPreviewOID = AddTextOption("Cancel temporary preview", "Select")
-    compareOID = AddTextOption("Compare original and selected in 3D", "Select")
     clearOID = AddTextOption("Restore original appearance", "Select")
     presetOID = AddMenuOption("Outfit favorite", presetLabel)
     savePresetOID = AddTextOption("Save armor and weapons", "Select")
@@ -102,11 +100,13 @@ Event OnOptionSelect(Int option)
             ShowMessage("Choose a worn item and an appearance first.", False)
         ElseIf weaponMode == 1
             If JGJGTransmogNative.SetWeaponAppearance(targetItem, selectedAppearance)
+                RefreshPlayerMeshes()
                 ShowMessage("Weapon appearance applied. The equipped item, enchantment, and stats were not changed.", False)
             Else
                 ShowMessage("Could not apply that appearance. Choose a weapon of the same type.", False)
             EndIf
         ElseIf JGJGTransmogNative.SetArmorAppearance(targetItem, selectedAppearance)
+            RefreshPlayerMeshes()
             ShowMessage("Armor appearance applied. Your equipped item and its stats were not changed.", False)
         Else
             ShowMessage("Could not apply that appearance. Choose armor with matching body slots.", False)
@@ -116,39 +116,35 @@ Event OnOptionSelect(Int option)
             ShowMessage("Choose a worn item and an appearance first.", False)
         ElseIf weaponMode == 1
             If JGJGTransmogNative.PreviewWeaponAppearance(targetItem, selectedAppearance)
+                RefreshPlayerMeshes()
                 ShowMessage("Temporary weapon preview is active. Apply to keep it, or cancel to restore the saved appearance.", False)
             Else
                 ShowMessage("Could not preview that appearance. Choose a weapon of the same type.", False)
             EndIf
         ElseIf JGJGTransmogNative.PreviewArmorAppearance(targetItem, selectedAppearance)
+            RefreshPlayerMeshes()
             ShowMessage("Temporary armor preview is active. Apply to keep it, or cancel to restore the saved appearance.", False)
         Else
             ShowMessage("Could not preview that appearance. Choose armor with matching body slots.", False)
         EndIf
     ElseIf option == cancelPreviewOID
         If weaponMode == 1 && targetItem && JGJGTransmogNative.CancelWeaponPreview(targetItem)
+            RefreshPlayerMeshes()
             ShowMessage("Temporary preview cancelled.", False)
         ElseIf weaponMode == 0 && targetItem && JGJGTransmogNative.CancelArmorPreview(targetItem)
+            RefreshPlayerMeshes()
             ShowMessage("Temporary preview cancelled.", False)
         Else
             ShowMessage("No temporary preview is active for this item.", False)
         EndIf
-    ElseIf option == compareOID
-        If !targetItem || !selectedAppearance
-            ShowMessage("Choose a worn item and an appearance first.", False)
-        ElseIf JGJGTransmogNative.StartSideBySideComparison(targetItem, selectedAppearance)
-            ; The native hides the MCM and places two temporary scene copies
-            ; beside the player. Reopen the MCM to dismiss the comparison.
-            Return
-        Else
-            ShowMessage("Could not create the 3D comparison. Your equipment was left unchanged.", False)
-        EndIf
     ElseIf option == clearOID
         If weaponMode == 1 && targetItem && JGJGTransmogNative.ClearWeaponAppearance(targetItem)
+            RefreshPlayerMeshes()
             selectedAppearance = None
             selectedName = "None"
             ShowMessage("Original weapon appearance restored.", False)
         ElseIf weaponMode == 0 && targetItem && JGJGTransmogNative.ClearArmorAppearance(targetItem)
+            RefreshPlayerMeshes()
             selectedAppearance = None
             selectedName = "None"
             ShowMessage("Original armor appearance restored.", False)
@@ -166,6 +162,7 @@ Event OnOptionSelect(Int option)
     ElseIf option == loadPresetOID
         If ShowMessage("Load " + presetLabel + "? This replaces current armor and weapon appearance choices.", True)
             If JGJGTransmogNative.LoadArmorPreset(selectedPreset)
+                RefreshPlayerMeshes()
                 Int skipped = JGJGTransmogNative.GetLastPresetSkipped()
                 If skipped > 0
                     ShowMessage("Loaded " + presetLabel + ". Skipped " + skipped as String + " missing or incompatible appearance(s).", False)
@@ -234,6 +231,7 @@ EndEvent
 
 Event OnOptionMenuAccept(Int option, Int index)
     If option == categoryOID && menuMode == 0
+        CancelCurrentPreview()
         If index == 0
             weaponMode = 0
             targetLabel = "Select worn armor"
@@ -251,8 +249,10 @@ Event OnOptionMenuAccept(Int option, Int index)
         If index < menuTargets.Length
             If weaponMode == 1 && targetItem
                 JGJGTransmogNative.CancelWeaponPreview(targetItem)
+                RefreshPlayerMeshes()
             ElseIf weaponMode == 0 && targetItem
                 JGJGTransmogNative.CancelArmorPreview(targetItem)
+                RefreshPlayerMeshes()
             EndIf
             targetItem = menuTargets[index]
             If index < menuTargetNames.Length
@@ -283,6 +283,7 @@ Event OnOptionMenuAccept(Int option, Int index)
             Else
                 JGJGTransmogNative.CancelArmorPreview(targetItem)
             EndIf
+            RefreshPlayerMeshes()
             selectedAppearance = forms[index]
             If index < names.Length
                 selectedName = names[index]
@@ -299,3 +300,22 @@ Event OnOptionMenuAccept(Int option, Int index)
     EndIf
     ForcePageReset()
 EndEvent
+
+Function RefreshPlayerMeshes()
+    Actor player = Game.GetPlayer()
+    If player
+        player.QueueNiNodeUpdate()
+    EndIf
+EndFunction
+
+Function CancelCurrentPreview()
+    If targetItem
+        If weaponMode == 1
+            If JGJGTransmogNative.CancelWeaponPreview(targetItem)
+                RefreshPlayerMeshes()
+            EndIf
+        ElseIf JGJGTransmogNative.CancelArmorPreview(targetItem)
+            RefreshPlayerMeshes()
+        EndIf
+    EndIf
+EndFunction

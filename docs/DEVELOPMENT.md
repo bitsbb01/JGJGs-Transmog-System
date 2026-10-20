@@ -10,8 +10,9 @@ The public okan1100/Skyrim-Transmog-System code was reviewed, but is not copied 
 
 ## Runtime validation still required
 
-1. Validate the experimental side-by-side scene comparison in game: camera framing, clone orientation and offsets, armor and weapon snapshots, MCM close/reopen cleanup, and cancellation without changing saved appearances.
-2. Complete broader compatibility testing before release: named enchanted/tempered items, two identical weapons with different extras, dual wielding, unequip/re-equip, selling/dropping, save/reload, transformation, custom races/body meshes, missing preset mods, head slots, shields, bows/crossbows and common animation/display mods.
+1. Validate armor and weapon Apply, temporary Preview, Cancel, and restoration in game after the queued mesh refresh. Confirm all saved appearance changes remain on the player only.
+2. Rebuild a side-by-side view with an isolated render scene; do not clone and attach player scene graphs to the live world scene.
+3. Complete broader compatibility testing before release: named enchanted/tempered items, two identical weapons with different extras, dual wielding, unequip/re-equip, selling/dropping, save/reload, transformation, custom races/body meshes, missing preset mods, head slots, shields, bows/crossbows and common animation/display mods.
 
 ## Build and release
 

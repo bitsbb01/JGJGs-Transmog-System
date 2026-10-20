@@ -17,7 +17,7 @@ The runtime packager supports a Data-relative ZIP suitable for MO2, Vortex and m
 - Armour compatibility filtered by equipment slots and player race/sex model availability.
 - Preserve original equipment, stats, tempering and enchantments.
 - Browse compatible installed items without owning them, with alphabetical sorting, name/plugin filters and pages of 25 (maximum 50).
-- Original/selected 3D comparison before Apply; Cancel changes nothing.
+- Temporary on-character appearance preview before Apply; Cancel changes nothing.
 - Ten named outfit favourites covering armour, shield and both hands. Skip and report incompatible/missing slots.
 - Save/load restoration and restore-original controls.
 
@@ -34,10 +34,10 @@ The runtime packager supports a Data-relative ZIP suitable for MO2, Vortex and m
 | Armor and weapon save/load | Implemented through SKSE serialization; confirmed working in game |
 | MCM test assets | Compiled in CI and attached to an ESL-flagged test ESP; confirmed working in game |
 | Ten combined outfit favorite slots | Armor and weapon appearance choices; confirmed working in game |
-| Side-by-side 3D preview | Experimental scene comparison: creates temporary original and selected character snapshots beside the player; needs in-game validation |
-| Complete playable package | Not ready; side-by-side scene behavior needs in-game validation |
+| Side-by-side 3D preview | Disabled while the scene-clone crash is investigated; on-character preview is available |
+| Complete playable package | Not ready; safe preview and in-game apply behavior need validation |
 
-The catalogue adapter snapshots form metadata on the game task queue, then sorts copied data on a worker. Armor and weapon hooks change only the player's rendered appearance and do not replace inventory items. The side-by-side scene comparison is experimental and needs in-game validation. Synthetic core tests are not game benchmarks.
+The catalogue adapter snapshots form metadata on the game task queue, then sorts copied data on a worker. Armor and weapon hooks change only the player's rendered appearance and do not replace inventory items. Preview and Apply now queue a player mesh refresh; validate both in game. Synthetic core tests are not game benchmarks.
 
 ## Dependencies
 
