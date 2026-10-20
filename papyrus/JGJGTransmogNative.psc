@@ -23,3 +23,4 @@ Bool Function SetWeaponAppearance(Form original, Form appearance) Global Native
 Bool Function ClearWeaponAppearance(Form original) Global Native
 Bool Function PreviewWeaponAppearance(Form original, Form appearance) Global Native
 Bool Function CancelWeaponPreview(Form original) Global Native
+Bool Function StartSideBySideComparison(Form original, Form appearance) Global Native

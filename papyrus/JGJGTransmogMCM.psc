@@ -9,6 +9,7 @@ Int applyOID
 Int clearOID
 Int previewOID
 Int cancelPreviewOID
+Int compareOID
 Int nextOID
 Int previousOID
 Int presetOID
@@ -43,7 +44,7 @@ Event OnPageReset(String page)
         AddTextOption("Weapon appearances", "Same-type swaps")
         AddTextOption("Save/load favorites", "Armor and weapons")
         AddTextOption("Temporary preview", "On character")
-        AddTextOption("Side-by-side 3D viewer", "Still in development", OPTION_FLAG_DISABLED)
+        AddTextOption("Side-by-side 3D viewer", "In-game test")
         Return
     EndIf
 
@@ -61,6 +62,7 @@ Event OnPageReset(String page)
     applyOID = AddTextOption("Apply appearance", "Select")
     previewOID = AddTextOption("Preview selected appearance", "Temporary")
     cancelPreviewOID = AddTextOption("Cancel temporary preview", "Select")
+    compareOID = AddTextOption("Compare original and selected in 3D", "Select")
     clearOID = AddTextOption("Restore original appearance", "Select")
     presetOID = AddMenuOption("Outfit favorite", presetLabel)
     savePresetOID = AddTextOption("Save armor and weapons", "Select")
@@ -130,6 +132,16 @@ Event OnOptionSelect(Int option)
             ShowMessage("Temporary preview cancelled.", False)
         Else
             ShowMessage("No temporary preview is active for this item.", False)
+        EndIf
+    ElseIf option == compareOID
+        If !targetItem || !selectedAppearance
+            ShowMessage("Choose a worn item and an appearance first.", False)
+        ElseIf JGJGTransmogNative.StartSideBySideComparison(targetItem, selectedAppearance)
+            ; The native hides the MCM and places two temporary scene copies
+            ; beside the player. Reopen the MCM to dismiss the comparison.
+            Return
+        Else
+            ShowMessage("Could not create the 3D comparison. Your equipment was left unchanged.", False)
         EndIf
     ElseIf option == clearOID
         If weaponMode == 1 && targetItem && JGJGTransmogNative.ClearWeaponAppearance(targetItem)

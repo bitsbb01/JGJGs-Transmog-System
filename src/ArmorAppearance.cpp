@@ -1,4 +1,5 @@
 #include "ArmorAppearance.h"
+#include "ComparisonPreview.h"
 #include "WeaponAppearance.h"
 
 #include <RE/Skyrim.h>
@@ -247,6 +248,7 @@ namespace {
 
 	void Save(SKSE::SerializationInterface* serialization)
 	{
+		EndSideBySideComparison();
 		std::lock_guard lock(overridesMutex);
 		const auto weaponOverrides = GetWeaponAppearanceOverrides();
 		for (const auto& [original, appearance] : overrides) {
@@ -285,6 +287,7 @@ namespace {
 
 	void Load(SKSE::SerializationInterface* serialization)
 	{
+		EndSideBySideComparison();
 		std::map<RE::FormID, RE::FormID> loaded;
 		WeaponAppearanceMap loadedWeapons;
 		std::array<ArmorPreset, kPresetCount> loadedPresets;
@@ -378,6 +381,7 @@ namespace {
 
 	void Revert(SKSE::SerializationInterface*)
 	{
+		EndSideBySideComparison();
 		ClearAllArmorAppearances();
 	}
 }
@@ -450,6 +454,7 @@ bool CancelArmorPreview(RE::TESForm* originalForm)
 
 void ClearAllArmorAppearances()
 {
+	EndSideBySideComparison();
 	{
 		std::lock_guard lock(overridesMutex);
 		overrides.clear();
@@ -479,6 +484,10 @@ bool RegisterArmorAppearanceFunctions(RE::BSScript::IVirtualMachine* vm)
 	vm->RegisterFunction("ClearWeaponAppearance", "JGJGTransmogNative", ClearWeaponAppearanceNative);
 	vm->RegisterFunction("PreviewWeaponAppearance", "JGJGTransmogNative", PreviewWeaponAppearanceNative);
 	vm->RegisterFunction("CancelWeaponPreview", "JGJGTransmogNative", CancelWeaponPreviewNative);
+	vm->RegisterFunction("StartSideBySideComparison", "JGJGTransmogNative",
+	                     [](RE::StaticFunctionTag*, RE::TESForm* original, RE::TESForm* appearance) {
+		                     return StartSideBySideComparison(original, appearance);
+	                     });
 	return true;
 }
 }  // namespace jgjg::engine

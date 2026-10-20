@@ -34,10 +34,10 @@ The runtime packager supports a Data-relative ZIP suitable for MO2, Vortex and m
 | Armor and weapon save/load | Implemented through SKSE serialization; confirmed working in game |
 | MCM test assets | Compiled in CI and attached to an ESL-flagged test ESP; confirmed working in game |
 | Ten combined outfit favorite slots | Armor and weapon appearance choices; confirmed working in game |
-| Side-by-side 3D preview | Not implemented; temporary preview changes the player's visible armor or weapons only |
-| Complete playable package | Not ready; side-by-side preview remains |
+| Side-by-side 3D preview | Experimental scene comparison: creates temporary original and selected character snapshots beside the player; needs in-game validation |
+| Complete playable package | Not ready; side-by-side scene behavior needs in-game validation |
 
-The catalogue adapter snapshots form metadata on the game task queue, then sorts copied data on a worker. The armor hook changes only the player's rendered armor and does not replace inventory items. Snapshot cost, race changes, equipment refresh, serialization and MCM behavior need in-game measurement. Synthetic core tests are not game benchmarks.
+The catalogue adapter snapshots form metadata on the game task queue, then sorts copied data on a worker. Armor and weapon hooks change only the player's rendered appearance and do not replace inventory items. The side-by-side scene comparison is experimental and needs in-game validation. Synthetic core tests are not game benchmarks.
 
 ## Dependencies
 

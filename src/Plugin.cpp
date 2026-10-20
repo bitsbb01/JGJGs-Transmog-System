@@ -1,6 +1,7 @@
 // SKSE native catalogue and player-only visual appearance prototype.
 #include "jgjg/Core.hpp"
 #include "ArmorAppearance.h"
+#include "ComparisonPreview.h"
 #include "WeaponAppearance.h"
 #include <mutex>
 #include <thread>
@@ -91,7 +92,7 @@ std::int32_t CatalogueCount(RE::StaticFunctionTag*) {
 }
 bool IsBuilding(RE::StaticFunctionTag*) { return building.load(); }
 std::string Status(RE::StaticFunctionTag*) {
-	return "Player armor and same-type weapon appearances with temporary on-character preview and save support. Side-by-side 3D preview is not available in this build.";
+	return "Player armor and same-type weapon appearances with temporary preview and save support. Experimental side-by-side scene comparison is available for testing.";
 }
 std::vector<std::string> QueryNames(RE::StaticFunctionTag*, RE::TESForm* target, std::string search, std::string plugin, std::int32_t page) {
     // Only immutable cached metadata is queried here. No player/model access
@@ -226,6 +227,7 @@ SKSEPluginLoad(const SKSE::LoadInterface* skse) {
     SKSE::log::info("JGJGs Transmog System 0.1.0: player armor appearance prototype, Steam 1.6.1170");
     if (!jgjg::engine::InstallArmorAppearanceHook()) return false;
     if (!jgjg::engine::InstallWeaponAppearanceHook()) return false;
+    if (!jgjg::engine::InstallComparisonPreviewListener()) return false;
     if (!jgjg::engine::InstallAppearanceSerialization()) return false;
     SKSE::GetMessagingInterface()->RegisterListener([](SKSE::MessagingInterface::Message* message) {
         if (message->type == SKSE::MessagingInterface::kPreLoadGame || message->type == SKSE::MessagingInterface::kNewGame) {
