@@ -1,6 +1,7 @@
 Scriptname JGJGTransmogMCM extends SKI_ConfigBase
 ; Render-only player armor and weapon appearances. Equipment is never replaced.
 Int categoryOID
+Int rebuildOID
 Int targetOID
 Int pluginOID
 Int browseOID
@@ -48,6 +49,7 @@ Event OnPageReset(String page)
 
     AddHeaderOption("Player appearance")
     AddTextOption("Cached catalogue items", JGJGTransmogNative.CatalogueCount() as String, OPTION_FLAG_DISABLED)
+    rebuildOID = AddTextOption("Build / refresh catalogue", "Select")
     If weaponMode == 0
         categoryOID = AddMenuOption("Browse category", "Armor and shields")
     Else
@@ -76,7 +78,13 @@ Event OnPageReset(String page)
 EndEvent
 
 Event OnOptionSelect(Int option)
-    If option == previousOID
+    If option == rebuildOID
+        If JGJGTransmogNative.RequestCatalogue()
+            ShowMessage("Catalogue requested. Reopen this page when it finishes.", False)
+        Else
+            ShowMessage("Catalogue is already building.", False)
+        EndIf
+    ElseIf option == previousOID
         If pageIndex > 0
             pageIndex -= 1
         EndIf
@@ -172,13 +180,11 @@ Event OnOptionMenuOpen(Int option)
     ElseIf option == targetOID
         menuMode = 1
         If weaponMode == 1
-            Form[] weapons = JGJGTransmogNative.GetPlayerWornWeapons()
+            menuTargets = JGJGTransmogNative.GetPlayerWornWeapons()
             menuTargetNames = JGJGTransmogNative.GetPlayerWornWeaponNames()
-            menuTargets = weapons
         Else
-            Form[] armors = JGJGTransmogNative.GetPlayerWornArmors()
+            menuTargets = JGJGTransmogNative.GetPlayerWornArmors()
             menuTargetNames = JGJGTransmogNative.GetPlayerWornArmorNames()
-            menuTargets = armors
         EndIf
         If menuTargetNames.Length == 0
             menuTargetNames = new String[1]
