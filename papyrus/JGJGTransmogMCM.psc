@@ -132,9 +132,14 @@ Event OnOptionSelect(Int option)
     ElseIf option == loadPresetOID
         If ShowMessage("Load " + presetLabel + "? This replaces the current armor appearance choices.", True)
             If JGJGTransmogNative.LoadArmorPreset(selectedPreset)
-                ShowMessage("Loaded " + presetLabel + ".", False)
+                Int skipped = JGJGTransmogNative.GetLastPresetSkipped()
+                If skipped > 0
+                    ShowMessage("Loaded " + presetLabel + ". Skipped " + skipped as String + " missing or incompatible armor appearance(s).", False)
+                Else
+                    ShowMessage("Loaded " + presetLabel + ".", False)
+                EndIf
             Else
-                ShowMessage("Could not load that favorite. A saved armor form may be missing or incompatible.", False)
+                ShowMessage("Could not load that favorite slot.", False)
             EndIf
         EndIf
     EndIf

@@ -16,3 +16,4 @@ Bool Function CancelArmorPreview(Form original) Global Native
 String[] Function GetArmorPresetNames() Global Native
 Bool Function SaveArmorPreset(Int slot) Global Native
 Bool Function LoadArmorPreset(Int slot) Global Native
+Int Function GetLastPresetSkipped() Global Native

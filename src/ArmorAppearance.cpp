@@ -31,10 +31,25 @@ namespace {
 	struct ArmorPreset { std::string name; std::map<RE::FormID, RE::FormID> appearances; };
 	constexpr std::size_t kPresetCount = 10;
 	std::array<ArmorPreset, kPresetCount> presets;
+	std::uint32_t lastPresetSkipped{};
 
 	std::string DefaultPresetName(std::size_t slot)
 	{
 		return "Favorite " + std::to_string(slot + 1);
+	}
+
+	bool HasPlayerArmorModel(const RE::TESObjectARMO* armor)
+	{
+		auto* player = RE::PlayerCharacter::GetSingleton();
+		if (!armor || !player || !player->GetActorBase() || !player->GetRace()) return false;
+		const auto sex = static_cast<unsigned>(player->GetActorBase()->GetSex());
+		if (sex > 1) return false;
+		for (auto* addon : armor->armorAddons) {
+			if (!addon || !addon->IsValidRace(player->GetRace())) continue;
+			const auto* model = addon->bipedModels[sex].GetModel();
+			if (model && *model) return true;
+		}
+		return false;
 	}
 
 	bool IsPlayerBiped(const ActorWeightModel* model, const RE::PlayerCharacter* player)
@@ -97,6 +112,7 @@ namespace {
 		if (!original || !appearance || !player || original->IsDynamicForm() ||
 		    appearance->IsDynamicForm() || !original->GetPlayable() || !appearance->GetPlayable() ||
 		    static_cast<std::uint32_t>(original->GetSlotMask()) == 0 ||
+		    !HasPlayerArmorModel(appearance) ||
 		    original->GetSlotMask() != appearance->GetSlotMask()) return false;
 		{
 			std::lock_guard lock(overridesMutex);
@@ -145,16 +161,24 @@ namespace {
 	{
 		if (slot < 0 || static_cast<std::size_t>(slot) >= kPresetCount) return false;
 		std::map<RE::FormID, RE::FormID> restored;
+		std::uint32_t skipped{};
 		{
 			std::lock_guard lock(overridesMutex);
 			for (const auto& [original, appearance] : presets[slot].appearances) {
 				auto* originalForm = RE::TESForm::LookupByID<RE::TESObjectARMO>(original);
 				auto* appearanceForm = RE::TESForm::LookupByID<RE::TESObjectARMO>(appearance);
-				if (!originalForm || !appearanceForm || originalForm->GetSlotMask() != appearanceForm->GetSlotMask()) return false;
+				if (!originalForm || !appearanceForm || !originalForm->GetPlayable() ||
+				    !appearanceForm->GetPlayable() ||
+				    originalForm->GetSlotMask() != appearanceForm->GetSlotMask() ||
+				    !HasPlayerArmorModel(appearanceForm)) {
+					++skipped;
+					continue;
+				}
 				restored.emplace(original, appearance);
 			}
 			overrides = std::move(restored);
 			previews.clear();
+			lastPresetSkipped = skipped;
 		}
 		RefreshPlayerArmor();
 		return true;
@@ -168,6 +192,12 @@ namespace {
 		for (std::size_t slot = 0; slot < presets.size(); ++slot)
 			names.push_back(presets[slot].name.empty() ? DefaultPresetName(slot) : presets[slot].name);
 		return names;
+	}
+
+	std::int32_t GetLastPresetSkippedNative(RE::StaticFunctionTag*)
+	{
+		std::lock_guard lock(overridesMutex);
+		return static_cast<std::int32_t>(lastPresetSkipped);
 	}
 
 	void Save(SKSE::SerializationInterface* serialization)
@@ -252,6 +282,7 @@ namespace {
 			overrides = std::move(loaded);
 			presets = std::move(loadedPresets);
 			previews.clear();
+			lastPresetSkipped = 0;
 		}
 	}
 
@@ -304,6 +335,7 @@ bool PreviewArmorAppearance(RE::TESForm* originalForm, RE::TESForm* appearanceFo
 	auto* appearance = appearanceForm ? appearanceForm->As<RE::TESObjectARMO>() : nullptr;
 	if (!original || !appearance || !original->GetPlayable() || !appearance->GetPlayable() ||
 	    static_cast<std::uint32_t>(original->GetSlotMask()) == 0 ||
+	    !HasPlayerArmorModel(appearance) ||
 	    original->GetSlotMask() != appearance->GetSlotMask()) return false;
 	{
 		std::lock_guard lock(overridesMutex);
@@ -331,6 +363,7 @@ void ClearAllArmorAppearances()
 	std::lock_guard lock(overridesMutex);
 	overrides.clear();
 	previews.clear();
+	lastPresetSkipped = 0;
 	for (std::size_t slot = 0; slot < presets.size(); ++slot) {
 		presets[slot].name = DefaultPresetName(slot);
 		presets[slot].appearances.clear();
@@ -346,6 +379,7 @@ bool RegisterArmorAppearanceFunctions(RE::BSScript::IVirtualMachine* vm)
 	vm->RegisterFunction("SaveArmorPreset", "JGJGTransmogNative", SaveArmorPresetNative);
 	vm->RegisterFunction("LoadArmorPreset", "JGJGTransmogNative", LoadArmorPresetNative);
 	vm->RegisterFunction("GetArmorPresetNames", "JGJGTransmogNative", GetArmorPresetNamesNative);
+	vm->RegisterFunction("GetLastPresetSkipped", "JGJGTransmogNative", GetLastPresetSkippedNative);
 	return true;
 }
 }  // namespace jgjg::engine
