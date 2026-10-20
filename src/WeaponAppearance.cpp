@@ -5,6 +5,8 @@
 
 #include <cstring>
 #include <mutex>
+#include <sstream>
+#include <iomanip>
 
 namespace jgjg::engine {
 namespace {
@@ -83,9 +85,16 @@ RE::NiAVObject* LoadPartHook(RE::TESModel* part, std::int32_t slot,
 	if (reference == player) diagnostics::weapon.hookCalls.fetch_add(1, std::memory_order_relaxed);
 	if (part && reference == player && biped && biped->get() && slot >= 0 &&
 	    slot < static_cast<std::int32_t>(RE::BIPED_OBJECTS::kTotal)) {
+		diagnostics::weapon.validSlots.fetch_add(1, std::memory_order_relaxed);
 		auto* item = biped->get()->objects[slot].item;
+		if (item) {
+			diagnostics::weapon.items.fetch_add(1, std::memory_order_relaxed);
+			diagnostics::weapon.lastSlotItem.store(item->GetFormID(), std::memory_order_relaxed);
+		}
 		auto* original = item ? item->As<RE::TESObjectWEAP>() : nullptr;
 		if (original) {
+			diagnostics::weapon.weapons.fetch_add(1, std::memory_order_relaxed);
+			diagnostics::weapon.lastWeapon.store(original->GetFormID(), std::memory_order_relaxed);
 			RE::FormID appearanceID{};
 			{
 				std::lock_guard lock(stateMutex);
@@ -95,8 +104,10 @@ RE::NiAVObject* LoadPartHook(RE::TESModel* part, std::int32_t slot,
 					appearanceID = saved->second;
 			}
 			if (appearanceID) {
+				diagnostics::weapon.mapMatches.fetch_add(1, std::memory_order_relaxed);
 				auto* appearance = RE::TESForm::LookupByID<RE::TESObjectWEAP>(appearanceID);
 				if (auto* model = ResolveModel(original, appearance, part)) {
+					diagnostics::weapon.compatible.fetch_add(1, std::memory_order_relaxed);
 					diagnostics::weapon.replacements.fetch_add(1, std::memory_order_relaxed);
 					part = model;
 				}
@@ -156,6 +167,8 @@ bool SetWeaponAppearance(RE::TESForm* originalForm, RE::TESForm* appearanceForm)
 		overrides.insert_or_assign(original->GetFormID(), appearance->GetFormID());
 		previews.erase(original->GetFormID());
 	}
+	diagnostics::weapon.lastSetOriginal.store(original->GetFormID(), std::memory_order_relaxed);
+	diagnostics::weapon.lastSetAppearance.store(appearance->GetFormID(), std::memory_order_relaxed);
 	RefreshPlayerWeapons();
 	return true;
 }
@@ -209,8 +222,24 @@ void RefreshPlayerWeapons()
 
 std::string GetWeaponRenderDiagnostics()
 {
-	return "Player model calls " + std::to_string(diagnostics::weapon.hookCalls.load(std::memory_order_relaxed)) +
-	       ", swaps " + std::to_string(diagnostics::weapon.replacements.load(std::memory_order_relaxed));
+	return std::to_string(diagnostics::weapon.hookCalls.load(std::memory_order_relaxed)) + "/" +
+	       std::to_string(diagnostics::weapon.validSlots.load(std::memory_order_relaxed)) + "/" +
+	       std::to_string(diagnostics::weapon.items.load(std::memory_order_relaxed)) + "/" +
+	       std::to_string(diagnostics::weapon.weapons.load(std::memory_order_relaxed)) + "/" +
+	       std::to_string(diagnostics::weapon.mapMatches.load(std::memory_order_relaxed)) + "/" +
+	       std::to_string(diagnostics::weapon.compatible.load(std::memory_order_relaxed)) + "/" +
+	       std::to_string(diagnostics::weapon.replacements.load(std::memory_order_relaxed));
+}
+
+std::string GetWeaponRenderFormIDs()
+{
+	std::ostringstream out;
+	out << std::hex << std::uppercase << std::setfill('0')
+	    << std::setw(8) << diagnostics::weapon.lastSetOriginal.load(std::memory_order_relaxed) << ">"
+	    << std::setw(8) << diagnostics::weapon.lastSetAppearance.load(std::memory_order_relaxed) << " / "
+	    << std::setw(8) << diagnostics::weapon.lastSlotItem.load(std::memory_order_relaxed) << "/"
+	    << std::setw(8) << diagnostics::weapon.lastWeapon.load(std::memory_order_relaxed);
+	return out.str();
 }
 
 WeaponAppearanceMap GetWeaponAppearanceOverrides()

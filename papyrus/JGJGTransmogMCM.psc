@@ -43,8 +43,10 @@ Event OnPageReset(String page)
         AddTextOption("Weapon appearances", "Needs renderer diagnosis")
         AddTextOption("Save/load favorites", "Armor and weapons")
         AddTextOption("Temporary preview", "Not working yet")
-        AddTextOption("Armor renderer", JGJGTransmogNative.GetArmorRenderDiagnostics(), OPTION_FLAG_DISABLED)
-        AddTextOption("Weapon renderer", JGJGTransmogNative.GetWeaponRenderDiagnostics(), OPTION_FLAG_DISABLED)
+        AddTextOption("Armor R/U/H/M/V/S", JGJGTransmogNative.GetArmorRenderDiagnostics(), OPTION_FLAG_DISABLED)
+        AddTextOption("Armor set > hook IDs", JGJGTransmogNative.GetArmorRenderFormIDs(), OPTION_FLAG_DISABLED)
+        AddTextOption("Weapon H/B/I/W/M/C/S", JGJGTransmogNative.GetWeaponRenderDiagnostics(), OPTION_FLAG_DISABLED)
+        AddTextOption("Weapon set > slot/weapon IDs", JGJGTransmogNative.GetWeaponRenderFormIDs(), OPTION_FLAG_DISABLED)
         Return
     EndIf
 

@@ -13,6 +13,8 @@
 #include <algorithm>
 #include <cstddef>
 #include <string>
+#include <sstream>
+#include <iomanip>
 
 namespace jgjg::engine {
 namespace {
@@ -66,6 +68,7 @@ namespace {
 	RE::TESObjectARMO* ResolveOverride(RE::TESObjectARMO* original)
 	{
 		if (!original) return nullptr;
+		diagnostics::armor.lastHookInput.store(original->GetFormID(), std::memory_order_relaxed);
 		RE::FormID appearanceID{};
 		{
 			std::lock_guard lock(overridesMutex);
@@ -77,10 +80,12 @@ namespace {
 				return nullptr;
 			}
 		}
+		diagnostics::armor.mapMatches.fetch_add(1, std::memory_order_relaxed);
 		auto* appearance = RE::TESForm::LookupByID<RE::TESObjectARMO>(appearanceID);
 		if (!appearance || !appearance->GetPlayable() ||
 		    appearance->GetSlotMask() != original->GetSlotMask() ||
 		    !HasPlayerArmorModel(appearance)) return nullptr;
+		diagnostics::armor.validAppearances.fetch_add(1, std::memory_order_relaxed);
 		return appearance;
 	}
 
@@ -133,6 +138,8 @@ namespace {
 			overrides.insert_or_assign(original->GetFormID(), appearance->GetFormID());
 			previews.erase(original->GetFormID());
 		}
+		diagnostics::armor.lastSetOriginal.store(original->GetFormID(), std::memory_order_relaxed);
+		diagnostics::armor.lastSetAppearance.store(appearance->GetFormID(), std::memory_order_relaxed);
 		RefreshPlayerArmor();
 		return true;
 	}
@@ -414,10 +421,22 @@ void RefreshPlayerArmor() { RefreshPlayerArmorImpl(); }
 
 std::string GetArmorRenderDiagnostics()
 {
-	return "Refresh " + std::to_string(diagnostics::armor.refreshRequests.load(std::memory_order_relaxed)) +
-	       ", equipment updates " + std::to_string(diagnostics::armor.equipmentUpdates.load(std::memory_order_relaxed)) +
-	       ", render calls " + std::to_string(diagnostics::armor.hookCalls.load(std::memory_order_relaxed)) +
-	       ", swaps " + std::to_string(diagnostics::armor.replacements.load(std::memory_order_relaxed));
+	return std::to_string(diagnostics::armor.refreshRequests.load(std::memory_order_relaxed)) + "/" +
+	       std::to_string(diagnostics::armor.equipmentUpdates.load(std::memory_order_relaxed)) + "/" +
+	       std::to_string(diagnostics::armor.hookCalls.load(std::memory_order_relaxed)) + "/" +
+	       std::to_string(diagnostics::armor.mapMatches.load(std::memory_order_relaxed)) + "/" +
+	       std::to_string(diagnostics::armor.validAppearances.load(std::memory_order_relaxed)) + "/" +
+	       std::to_string(diagnostics::armor.replacements.load(std::memory_order_relaxed));
+}
+
+std::string GetArmorRenderFormIDs()
+{
+	std::ostringstream out;
+	out << std::hex << std::uppercase << std::setfill('0')
+	    << std::setw(8) << diagnostics::armor.lastSetOriginal.load(std::memory_order_relaxed) << ">"
+	    << std::setw(8) << diagnostics::armor.lastSetAppearance.load(std::memory_order_relaxed) << " / "
+	    << std::setw(8) << diagnostics::armor.lastHookInput.load(std::memory_order_relaxed);
+	return out.str();
 }
 
 bool SetArmorAppearance(RE::TESForm* original, RE::TESForm* appearance)
