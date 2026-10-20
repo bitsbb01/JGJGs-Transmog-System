@@ -180,6 +180,12 @@ namespace {
 		return CancelWeaponPreview(original);
 	}
 
+	bool StartSideBySideComparisonNative(RE::StaticFunctionTag*, RE::TESForm* original,
+	                                     RE::TESForm* appearance)
+	{
+		return StartSideBySideComparison(original, appearance);
+	}
+
 	bool SaveArmorPresetNative(RE::StaticFunctionTag*, std::int32_t slot)
 	{
 		if (slot < 0 || static_cast<std::size_t>(slot) >= kPresetCount) return false;
@@ -484,10 +490,7 @@ bool RegisterArmorAppearanceFunctions(RE::BSScript::IVirtualMachine* vm)
 	vm->RegisterFunction("ClearWeaponAppearance", "JGJGTransmogNative", ClearWeaponAppearanceNative);
 	vm->RegisterFunction("PreviewWeaponAppearance", "JGJGTransmogNative", PreviewWeaponAppearanceNative);
 	vm->RegisterFunction("CancelWeaponPreview", "JGJGTransmogNative", CancelWeaponPreviewNative);
-	vm->RegisterFunction("StartSideBySideComparison", "JGJGTransmogNative",
-	                     [](RE::StaticFunctionTag*, RE::TESForm* original, RE::TESForm* appearance) {
-		                     return StartSideBySideComparison(original, appearance);
-	                     });
+	vm->RegisterFunction("StartSideBySideComparison", "JGJGTransmogNative", StartSideBySideComparisonNative);
 	return true;
 }
 }  // namespace jgjg::engine
