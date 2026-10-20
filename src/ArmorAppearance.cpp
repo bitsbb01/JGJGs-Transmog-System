@@ -118,6 +118,11 @@ namespace {
 		const bool wasRefreshing = refreshingPlayerAppearance;
 		refreshingPlayerAppearance = true;
 		updateEquipment(process, player);
+		// QueueNiNodeUpdate is asynchronous and can be deferred while the MCM
+		// pauses the game. Rebuild the player's 3D here, while the player-only
+		// armor hook context is active, so armor and weapon model hooks can see
+		// the mappings written by Apply before the menu returns control.
+		player->DoReset3D(false);
 		refreshingPlayerAppearance = wasRefreshing;
 		diagnostics::armor.equipmentUpdates.fetch_add(1, std::memory_order_relaxed);
 	}
