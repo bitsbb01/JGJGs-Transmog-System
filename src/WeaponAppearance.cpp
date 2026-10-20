@@ -1,5 +1,6 @@
 #include "WeaponAppearance.h"
 #include "ArmorAppearance.h"
+#include "RenderDiagnostics.h"
 #include <RE/T/TESObjectSTAT.h>
 
 #include <cstring>
@@ -79,6 +80,7 @@ RE::NiAVObject* LoadPartHook(RE::TESModel* part, std::int32_t slot,
                              RE::NiAVObject* root)
 {
 	auto* player = RE::PlayerCharacter::GetSingleton();
+	if (reference == player) diagnostics::weapon.hookCalls.fetch_add(1, std::memory_order_relaxed);
 	if (part && reference == player && biped && biped->get() && slot >= 0 &&
 	    slot < static_cast<std::int32_t>(RE::BIPED_OBJECTS::kTotal)) {
 		auto* item = biped->get()->objects[slot].item;
@@ -94,7 +96,10 @@ RE::NiAVObject* LoadPartHook(RE::TESModel* part, std::int32_t slot,
 			}
 			if (appearanceID) {
 				auto* appearance = RE::TESForm::LookupByID<RE::TESObjectWEAP>(appearanceID);
-				if (auto* model = ResolveModel(original, appearance, part)) part = model;
+				if (auto* model = ResolveModel(original, appearance, part)) {
+					diagnostics::weapon.replacements.fetch_add(1, std::memory_order_relaxed);
+					part = model;
+				}
 			}
 		}
 	}
@@ -200,6 +205,12 @@ void RefreshPlayerWeapons()
 	// The equipment update refreshes biped parts without unequipping or
 	// replacing the real weapon instance.
 	jgjg::engine::RefreshPlayerArmor();
+}
+
+std::string GetWeaponRenderDiagnostics()
+{
+	return "Player model calls " + std::to_string(diagnostics::weapon.hookCalls.load(std::memory_order_relaxed)) +
+	       ", swaps " + std::to_string(diagnostics::weapon.replacements.load(std::memory_order_relaxed));
 }
 
 WeaponAppearanceMap GetWeaponAppearanceOverrides()

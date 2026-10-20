@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 namespace RE {
 	class TESForm;
 namespace BSScript { class IVirtualMachine; }
@@ -9,6 +11,7 @@ namespace jgjg::engine {
 	bool InstallArmorAppearanceHook();
 	bool InstallAppearanceSerialization();
 	void RefreshPlayerArmor();
+	std::string GetArmorRenderDiagnostics();
 	bool SetArmorAppearance(RE::TESForm* original, RE::TESForm* appearance);
 	bool ClearArmorAppearance(RE::TESForm* original);
 	bool PreviewArmorAppearance(RE::TESForm* original, RE::TESForm* appearance);

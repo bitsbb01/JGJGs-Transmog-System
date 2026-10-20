@@ -2,7 +2,7 @@
 
 There is currently no release-ready mod package. The `APPEARANCE-TEST` Actions artifact is an in-game test build. SOURCE and DEVELOPER-ONLY downloads are not ready to install into Skyrim.
 
-The `APPEARANCE-TEST` Actions artifact includes an ESL-flagged ESP-FE, compiled MCM scripts, and the native SKSE plugin. It adds player armor and same-type weapon appearance selection, apply/restore, save/load serialization, ten fixed-slot outfit favorites, and a temporary on-character preview. Apply and Preview queue a player mesh refresh so the chosen appearance can be seen immediately. The experimental side-by-side scene clone was removed after it crashed in game. Re-test armor, weapons, apply, preview, cancel, and save/load in a disposable MO2/Vortex profile and save. Requires Skyrim Steam 1.6.1170, matching SKSE64, SkyUI SE, and the matching Address Library database.
+The `APPEARANCE-TEST` Actions artifact includes an ESL-flagged ESP-FE, compiled MCM scripts, and the native SKSE plugin. It adds player armor and same-type weapon appearance selection, persistence, and an MCM development page. In-game testing found that Apply and Preview report success without changing the rendered items; the development page now reports hook counters to diagnose this. The experimental side-by-side scene clone was removed after it crashed in game, and the blank MCM column is not a preview viewport. Requires Skyrim Steam 1.6.1170, matching SKSE64, SkyUI SE, and the matching Address Library database.
 
 When a playable prerelease is published:
 

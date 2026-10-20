@@ -39,11 +39,12 @@ Event OnPageReset(String page)
     SetCursorFillMode(TOP_TO_BOTTOM)
     If page == "Development status"
         AddHeaderOption("Player appearance system")
-        AddTextOption("Armor appearances", "Working in game")
-        AddTextOption("Weapon appearances", "Same-type swaps")
+        AddTextOption("Armor appearances", "Needs renderer diagnosis")
+        AddTextOption("Weapon appearances", "Needs renderer diagnosis")
         AddTextOption("Save/load favorites", "Armor and weapons")
-        AddTextOption("Temporary preview", "On character")
-        AddTextOption("Appearance preview", "On character")
+        AddTextOption("Temporary preview", "Not working yet")
+        AddTextOption("Armor renderer", JGJGTransmogNative.GetArmorRenderDiagnostics(), OPTION_FLAG_DISABLED)
+        AddTextOption("Weapon renderer", JGJGTransmogNative.GetWeaponRenderDiagnostics(), OPTION_FLAG_DISABLED)
         Return
     EndIf
 

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 #include <RE/Skyrim.h>
 #include <SKSE/SKSE.h>
 
@@ -15,6 +17,7 @@ bool ClearWeaponAppearance(RE::TESForm* original);
 bool PreviewWeaponAppearance(RE::TESForm* original, RE::TESForm* appearance);
 bool CancelWeaponPreview(RE::TESForm* original);
 void RefreshPlayerWeapons();
+std::string GetWeaponRenderDiagnostics();
 WeaponAppearanceMap GetWeaponAppearanceOverrides();
 void ReplaceWeaponAppearanceOverrides(WeaponAppearanceMap appearances);
 bool AreCompatiblePlayerWeapons(const RE::TESObjectWEAP* original,

@@ -28,16 +28,16 @@ The runtime packager supports a Data-relative ZIP suitable for MO2, Vortex and m
 | Catalogue, filtering and pagination | Implemented and tested with synthetic data |
 | Preset planning and staged selection | Implemented and tested; in-memory only |
 | Catalogue and compatibility filters | Implemented; portable tests cover the core and Windows CI builds the SKSE adapter |
-| Player armor appearance hook | Implemented for Steam 1.6.1170; confirmed working in game |
-| Player weapon appearance hook | Same-type weapon forms on Steam 1.6.1170; confirmed working in game |
-| Apply, restore and temporary on-character preview | Armor and weapons; confirmed working in game |
+| Player armor appearance hook | Implemented for Steam 1.6.1170; model replacement needs diagnosis |
+| Player weapon appearance hook | Same-type weapon forms on Steam 1.6.1170; model replacement needs diagnosis |
+| Apply, restore and temporary on-character preview | Selections save, but visual changes are not currently confirmed |
 | Armor and weapon save/load | Implemented through SKSE serialization; confirmed working in game |
 | MCM test assets | Compiled in CI and attached to an ESL-flagged test ESP; confirmed working in game |
 | Ten combined outfit favorite slots | Armor and weapon appearance choices; confirmed working in game |
-| Side-by-side 3D preview | Disabled while the scene-clone crash is investigated; on-character preview is available |
-| Complete playable package | Not ready; safe preview and in-game apply behavior need validation |
+| Side-by-side 3D preview | Disabled; a separate isolated UI render scene is needed |
+| Complete playable package | Not ready; apply and preview currently fail in-game |
 
-The catalogue adapter snapshots form metadata on the game task queue, then sorts copied data on a worker. Armor and weapon hooks change only the player's rendered appearance and do not replace inventory items. Preview and Apply now queue a player mesh refresh; validate both in game. Synthetic core tests are not game benchmarks.
+The catalogue adapter snapshots form metadata on the game task queue, then sorts copied data on a worker. Appearance mappings are stored without replacing the equipped items. A development-status page now reports refresh and renderer-hook counters to diagnose why models are not changing. Synthetic core tests are not game benchmarks.
 
 ## Dependencies
 

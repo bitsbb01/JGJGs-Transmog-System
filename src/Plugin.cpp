@@ -93,6 +93,8 @@ bool IsBuilding(RE::StaticFunctionTag*) { return building.load(); }
 std::string Status(RE::StaticFunctionTag*) {
 	return "Player armor and same-type weapon appearances with temporary on-character preview and save support.";
 }
+std::string ArmorRenderDiagnostics(RE::StaticFunctionTag*) { return jgjg::engine::GetArmorRenderDiagnostics(); }
+std::string WeaponRenderDiagnostics(RE::StaticFunctionTag*) { return jgjg::engine::GetWeaponRenderDiagnostics(); }
 std::vector<std::string> QueryNames(RE::StaticFunctionTag*, RE::TESForm* target, std::string search, std::string plugin, std::int32_t page) {
     // Only immutable cached metadata is queried here. No player/model access
     // from the Papyrus VM thread. Form ID is stable while the VM holds its form.
@@ -201,6 +203,8 @@ bool Register(RE::BSScript::IVirtualMachine* vm) {
     vm->RegisterFunction("CatalogueCount", "JGJGTransmogNative", CatalogueCount);
     vm->RegisterFunction("IsBuilding", "JGJGTransmogNative", IsBuilding);
     vm->RegisterFunction("Status", "JGJGTransmogNative", Status);
+    vm->RegisterFunction("GetArmorRenderDiagnostics", "JGJGTransmogNative", ArmorRenderDiagnostics);
+    vm->RegisterFunction("GetWeaponRenderDiagnostics", "JGJGTransmogNative", WeaponRenderDiagnostics);
     vm->RegisterFunction("QueryNames", "JGJGTransmogNative", QueryNames);
     vm->RegisterFunction("QueryPlugins", "JGJGTransmogNative", QueryPlugins);
     vm->RegisterFunction("QueryPageCount", "JGJGTransmogNative", QueryPageCount);

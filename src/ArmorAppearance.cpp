@@ -1,5 +1,6 @@
 #include "ArmorAppearance.h"
 #include "WeaponAppearance.h"
+#include "RenderDiagnostics.h"
 
 #include <RE/Skyrim.h>
 #include <SKSE/SKSE.h>
@@ -86,14 +87,20 @@ namespace {
 	bool ApplyArmorAddonHook(RE::TESObjectARMO* armor, RE::TESRace* race,
 	                         void* model, bool female)
 	{
+		if (refreshingPlayerAppearance)
+			diagnostics::armor.hookCalls.fetch_add(1, std::memory_order_relaxed);
 		if (armor && refreshingPlayerAppearance) {
-			if (auto* appearance = ResolveOverride(armor)) armor = appearance;
+			if (auto* appearance = ResolveOverride(armor)) {
+				diagnostics::armor.replacements.fetch_add(1, std::memory_order_relaxed);
+				armor = appearance;
+			}
 		}
 		return applyArmorAddonHook.call<bool>(armor, race, model, female);
 	}
 
 	void RefreshPlayerArmorImpl()
 	{
+		diagnostics::armor.refreshRequests.fetch_add(1, std::memory_order_relaxed);
 		auto* player = RE::PlayerCharacter::GetSingleton();
 		if (!player) return;
 		auto* process = player->GetActorRuntimeData().currentProcess;
@@ -107,6 +114,7 @@ namespace {
 		refreshingPlayerAppearance = true;
 		updateEquipment(process, player);
 		refreshingPlayerAppearance = wasRefreshing;
+		diagnostics::armor.equipmentUpdates.fetch_add(1, std::memory_order_relaxed);
 	}
 
 	bool SetArmorAppearanceNative(RE::StaticFunctionTag*, RE::TESForm* originalForm,
@@ -403,6 +411,14 @@ bool InstallAppearanceSerialization()
 }
 
 void RefreshPlayerArmor() { RefreshPlayerArmorImpl(); }
+
+std::string GetArmorRenderDiagnostics()
+{
+	return "Refresh " + std::to_string(diagnostics::armor.refreshRequests.load(std::memory_order_relaxed)) +
+	       ", equipment updates " + std::to_string(diagnostics::armor.equipmentUpdates.load(std::memory_order_relaxed)) +
+	       ", render calls " + std::to_string(diagnostics::armor.hookCalls.load(std::memory_order_relaxed)) +
+	       ", swaps " + std::to_string(diagnostics::armor.replacements.load(std::memory_order_relaxed));
+}
 
 bool SetArmorAppearance(RE::TESForm* original, RE::TESForm* appearance)
 {
