@@ -105,11 +105,11 @@ jobs:
           if (!(Test-Path $dll)) { throw "Compiled DLL missing: $dll" }
           New-Item -ItemType Directory -Force -Path "package/Data/SKSE/Plugins" | Out-Null
           Copy-Item $dll "package/Data/SKSE/Plugins/JGJGsTransmogSystem.dll" -Force
-      - name: Package in-game armor render test (not a complete transmog mod)
+      - name: Package in-game armor and weapon render test (not a complete transmog mod)
         run: python tools/package.py --mode mcm-test --stage package/Data
       - uses: actions/upload-artifact@v4
         with:
-          name: JGJGs-Transmog-System-ARMOR-TEST-ONLY
+          name: JGJGs-Transmog-System-APPEARANCE-TEST
           path: dist/*
           if-no-files-found: error
   release-source:

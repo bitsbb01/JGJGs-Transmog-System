@@ -101,10 +101,10 @@ def main():
         if not args.stage:
             raise ValueError('--stage is required')
         entries.update(validate_mcm_test(args.stage))
-        entries['JGJG-ARMOR-TEST-ONLY.txt'] = (
-            b'TEST BUILD: Applies armor appearance overrides to the player through an SKSE render hook. Includes save/load serialization, ten fixed armor favorite slots, and a temporary on-character appearance preview. Weapons, combined armor/weapon outfits, and the side-by-side 3D preview are not included yet. Use a disposable MO2/Vortex profile and save. Requires Skyrim Steam 1.6.1170, matching SKSE, SkyUI, and Address Library.\n'
+        entries['JGJG-APPEARANCE-TEST.txt'] = (
+            b'TEST BUILD: Applies player armor and same-type weapon appearances through SKSE render hooks. Includes save/load serialization, ten fixed outfit favorite slots covering armor and weapon forms, and a temporary on-character appearance preview. Side-by-side 3D comparison is not included yet. Use a disposable MO2/Vortex profile and save. Requires Skyrim Steam 1.6.1170, matching SKSE, SkyUI, and Address Library. Weapon rendering and save/load need in-game validation.\n'
         )
-        suffix = 'ARMOR-TEST-ONLY'
+        suffix = 'APPEARANCE-TEST'
     else:
         if not args.stage:
             raise ValueError('--stage is required')

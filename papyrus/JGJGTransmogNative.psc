@@ -9,6 +9,8 @@ Int Function QueryPageCount(Form target, String plugin) Global Native
 Form[] Function QueryForms(Form target, String search, String plugin, Int page) Global Native
 Form[] Function GetPlayerWornArmors() Global Native
 String[] Function GetPlayerWornArmorNames() Global Native
+Form[] Function GetPlayerWornWeapons() Global Native
+String[] Function GetPlayerWornWeaponNames() Global Native
 Bool Function SetArmorAppearance(Form original, Form appearance) Global Native
 Bool Function ClearArmorAppearance(Form original) Global Native
 Bool Function PreviewArmorAppearance(Form original, Form appearance) Global Native
@@ -17,3 +19,7 @@ String[] Function GetArmorPresetNames() Global Native
 Bool Function SaveArmorPreset(Int slot) Global Native
 Bool Function LoadArmorPreset(Int slot) Global Native
 Int Function GetLastPresetSkipped() Global Native
+Bool Function SetWeaponAppearance(Form original, Form appearance) Global Native
+Bool Function ClearWeaponAppearance(Form original) Global Native
+Bool Function PreviewWeaponAppearance(Form original, Form appearance) Global Native
+Bool Function CancelWeaponPreview(Form original) Global Native

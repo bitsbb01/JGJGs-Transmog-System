@@ -1,4 +1,5 @@
 #include "ArmorAppearance.h"
+#include "WeaponAppearance.h"
 
 #include <RE/Skyrim.h>
 #include <SKSE/SKSE.h>
@@ -25,10 +26,18 @@ namespace {
 	constexpr std::uint32_t kAppearanceRecord = 0x41524D4F;  // ARMO
 	constexpr std::uint32_t kPresetRecord = 0x50525354;       // PRST
 	constexpr std::uint32_t kPresetBindingRecord = 0x50524244; // PRBD
+	constexpr std::uint32_t kWeaponRecord = 0x5745504E; // WEPN
+	constexpr std::uint32_t kWeaponPresetBindingRecord = 0x57504244; // WPBD
 	struct AppearanceRecord { RE::FormID original; RE::FormID appearance; };
+	using WeaponRecord = AppearanceRecord;
 	struct PresetHeaderRecord { std::uint32_t slot; char name[64]; };
 	struct PresetBindingRecord { std::uint32_t slot; RE::FormID original; RE::FormID appearance; };
-	struct ArmorPreset { std::string name; std::map<RE::FormID, RE::FormID> appearances; };
+	using WeaponPresetBindingRecord = PresetBindingRecord;
+	struct ArmorPreset {
+		std::string name;
+		std::map<RE::FormID, RE::FormID> appearances;
+		WeaponAppearanceMap weapons;
+	};
 	constexpr std::size_t kPresetCount = 10;
 	std::array<ArmorPreset, kPresetCount> presets;
 	std::array<std::uint32_t, kPresetCount> presetInvalidCounts{};
@@ -150,12 +159,33 @@ namespace {
 		return CancelArmorPreview(originalForm);
 	}
 
+	bool SetWeaponAppearanceNative(RE::StaticFunctionTag*, RE::TESForm* original, RE::TESForm* appearance)
+	{
+		return SetWeaponAppearance(original, appearance);
+	}
+
+	bool ClearWeaponAppearanceNative(RE::StaticFunctionTag*, RE::TESForm* original)
+	{
+		return ClearWeaponAppearance(original);
+	}
+
+	bool PreviewWeaponAppearanceNative(RE::StaticFunctionTag*, RE::TESForm* original, RE::TESForm* appearance)
+	{
+		return PreviewWeaponAppearance(original, appearance);
+	}
+
+	bool CancelWeaponPreviewNative(RE::StaticFunctionTag*, RE::TESForm* original)
+	{
+		return CancelWeaponPreview(original);
+	}
+
 	bool SaveArmorPresetNative(RE::StaticFunctionTag*, std::int32_t slot)
 	{
 		if (slot < 0 || static_cast<std::size_t>(slot) >= kPresetCount) return false;
 		std::lock_guard lock(overridesMutex);
 		presets[slot].name = DefaultPresetName(static_cast<std::size_t>(slot));
 		presets[slot].appearances = overrides;
+		presets[slot].weapons = GetWeaponAppearanceOverrides();
 		presetInvalidCounts[slot] = 0;
 		return true;
 	}
@@ -164,6 +194,7 @@ namespace {
 	{
 		if (slot < 0 || static_cast<std::size_t>(slot) >= kPresetCount) return false;
 		std::map<RE::FormID, RE::FormID> restored;
+		WeaponAppearanceMap restoredWeapons;
 		std::uint32_t skipped{};
 		{
 			std::lock_guard lock(overridesMutex);
@@ -180,10 +211,20 @@ namespace {
 				}
 				restored.emplace(original, appearance);
 			}
+			for (const auto& [original, appearance] : presets[slot].weapons) {
+				auto* originalForm = RE::TESForm::LookupByID<RE::TESObjectWEAP>(original);
+				auto* appearanceForm = RE::TESForm::LookupByID<RE::TESObjectWEAP>(appearance);
+				if (!AreCompatiblePlayerWeapons(originalForm, appearanceForm)) {
+					++skipped;
+					continue;
+				}
+				restoredWeapons.emplace(original, appearance);
+			}
 			overrides = std::move(restored);
 			previews.clear();
 			lastPresetSkipped = skipped;
 		}
+		ReplaceWeaponAppearanceOverrides(std::move(restoredWeapons));
 		RefreshPlayerArmor();
 		return true;
 	}
@@ -207,11 +248,17 @@ namespace {
 	void Save(SKSE::SerializationInterface* serialization)
 	{
 		std::lock_guard lock(overridesMutex);
+		const auto weaponOverrides = GetWeaponAppearanceOverrides();
 		for (const auto& [original, appearance] : overrides) {
 			const AppearanceRecord record{ original, appearance };
 			if (!serialization->WriteRecord(kAppearanceRecord, 1, record)) {
 				SKSE::log::error("Failed to save armor appearance {:08X}", original);
 			}
+		}
+		for (const auto& [original, appearance] : weaponOverrides) {
+			const WeaponRecord record{ original, appearance };
+			if (!serialization->WriteRecord(kWeaponRecord, 1, record))
+				SKSE::log::error("Failed to save weapon appearance {:08X}", original);
 		}
 		for (std::size_t slot = 0; slot < presets.size(); ++slot) {
 			const auto& preset = presets[slot];
@@ -228,12 +275,18 @@ namespace {
 				if (!serialization->WriteRecord(kPresetBindingRecord, 1, binding))
 					SKSE::log::error("Failed to save armor favorite {} binding {:08X}", slot + 1, original);
 			}
+			for (const auto& [original, appearance] : preset.weapons) {
+				const WeaponPresetBindingRecord binding{ static_cast<std::uint32_t>(slot), original, appearance };
+				if (!serialization->WriteRecord(kWeaponPresetBindingRecord, 1, binding))
+					SKSE::log::error("Failed to save outfit favorite {} weapon binding {:08X}", slot + 1, original);
+			}
 		}
 	}
 
 	void Load(SKSE::SerializationInterface* serialization)
 	{
 		std::map<RE::FormID, RE::FormID> loaded;
+		WeaponAppearanceMap loadedWeapons;
 		std::array<ArmorPreset, kPresetCount> loadedPresets;
 		std::array<std::uint32_t, kPresetCount> invalidBindings{};
 		for (std::size_t slot = 0; slot < loadedPresets.size(); ++slot)
@@ -266,6 +319,32 @@ namespace {
 				}
 				continue;
 			}
+			if (type == kWeaponPresetBindingRecord && version == 1 && length == sizeof(WeaponPresetBindingRecord)) {
+				WeaponPresetBindingRecord binding{};
+				if (serialization->ReadRecordData(binding) == sizeof(binding) && binding.slot < loadedPresets.size()) {
+					RE::FormID original{}, appearance{};
+					if (serialization->ResolveFormID(binding.original, original) &&
+						serialization->ResolveFormID(binding.appearance, appearance) &&
+						AreCompatiblePlayerWeapons(RE::TESForm::LookupByID<RE::TESObjectWEAP>(original),
+							RE::TESForm::LookupByID<RE::TESObjectWEAP>(appearance)))
+						loadedPresets[binding.slot].weapons.insert_or_assign(original, appearance);
+					else
+						++invalidBindings[binding.slot];
+				}
+				continue;
+			}
+			if (type == kWeaponRecord && version == 1 && length == sizeof(WeaponRecord)) {
+				WeaponRecord record{};
+				if (serialization->ReadRecordData(record) == sizeof(record)) {
+					RE::FormID original{}, appearance{};
+					if (serialization->ResolveFormID(record.original, original) &&
+						serialization->ResolveFormID(record.appearance, appearance) &&
+						AreCompatiblePlayerWeapons(RE::TESForm::LookupByID<RE::TESObjectWEAP>(original),
+							RE::TESForm::LookupByID<RE::TESObjectWEAP>(appearance)))
+						loadedWeapons.insert_or_assign(original, appearance);
+				}
+				continue;
+			}
 			if (type != kAppearanceRecord || version != 1 || length != sizeof(AppearanceRecord)) {
 				std::array<std::byte, 256> discard{};
 				while (length > 0) {
@@ -294,6 +373,7 @@ namespace {
 			previews.clear();
 			lastPresetSkipped = 0;
 		}
+		ReplaceWeaponAppearanceOverrides(std::move(loadedWeapons));
 	}
 
 	void Revert(SKSE::SerializationInterface*)
@@ -370,15 +450,19 @@ bool CancelArmorPreview(RE::TESForm* originalForm)
 
 void ClearAllArmorAppearances()
 {
-	std::lock_guard lock(overridesMutex);
-	overrides.clear();
-	previews.clear();
-	lastPresetSkipped = 0;
-	presetInvalidCounts.fill(0);
-	for (std::size_t slot = 0; slot < presets.size(); ++slot) {
-		presets[slot].name = DefaultPresetName(slot);
-		presets[slot].appearances.clear();
+	{
+		std::lock_guard lock(overridesMutex);
+		overrides.clear();
+		previews.clear();
+		lastPresetSkipped = 0;
+		presetInvalidCounts.fill(0);
+		for (std::size_t slot = 0; slot < presets.size(); ++slot) {
+			presets[slot].name = DefaultPresetName(slot);
+			presets[slot].appearances.clear();
+			presets[slot].weapons.clear();
+		}
 	}
+	ReplaceWeaponAppearanceOverrides({});
 }
 
 bool RegisterArmorAppearanceFunctions(RE::BSScript::IVirtualMachine* vm)
@@ -391,6 +475,10 @@ bool RegisterArmorAppearanceFunctions(RE::BSScript::IVirtualMachine* vm)
 	vm->RegisterFunction("LoadArmorPreset", "JGJGTransmogNative", LoadArmorPresetNative);
 	vm->RegisterFunction("GetArmorPresetNames", "JGJGTransmogNative", GetArmorPresetNamesNative);
 	vm->RegisterFunction("GetLastPresetSkipped", "JGJGTransmogNative", GetLastPresetSkippedNative);
+	vm->RegisterFunction("SetWeaponAppearance", "JGJGTransmogNative", SetWeaponAppearanceNative);
+	vm->RegisterFunction("ClearWeaponAppearance", "JGJGTransmogNative", ClearWeaponAppearanceNative);
+	vm->RegisterFunction("PreviewWeaponAppearance", "JGJGTransmogNative", PreviewWeaponAppearanceNative);
+	vm->RegisterFunction("CancelWeaponPreview", "JGJGTransmogNative", CancelWeaponPreviewNative);
 	return true;
 }
 }  // namespace jgjg::engine

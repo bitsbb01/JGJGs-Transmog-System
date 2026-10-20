@@ -1,8 +1,8 @@
 # Installation — future playable packages
 
-There is currently no playable mod package. SOURCE and DEVELOPER-ONLY downloads are not ready to install into Skyrim.
+There is currently no release-ready mod package. The `APPEARANCE-TEST` Actions artifact is an in-game test build. SOURCE and DEVELOPER-ONLY downloads are not ready to install into Skyrim.
 
-The `ARMOR-TEST-ONLY` Actions artifact is an intermediate test build. It includes an ESL-flagged ESP-FE, compiled MCM scripts, and the native SKSE plugin. It adds player-only armor appearance selection, apply/restore, save/load serialization, ten fixed-slot armor favorites, and a temporary on-character preview. It does not provide weapon appearances, editable preset names, combined armor-and-weapon outfits, or a side-by-side 3D viewer. Preview the selected armor on the player, then apply it to keep it or cancel to restore the saved look. Install only into a disposable MO2/Vortex profile and save. Requires Skyrim Steam 1.6.1170, matching SKSE64, SkyUI SE, and the matching Address Library database.
+The `APPEARANCE-TEST` Actions artifact includes an ESL-flagged ESP-FE, compiled MCM scripts, and the native SKSE plugin. It adds player armor and same-type weapon appearance selection, apply/restore, save/load serialization, ten fixed-slot outfit favorites, and a temporary on-character preview. It does not provide a side-by-side 3D viewer. Weapon hook behavior and combined favorite save/load still need in-game validation. Preview the selected appearance on the player, then apply it to keep it or cancel to restore the saved look. Install only into a disposable MO2/Vortex profile and save. Requires Skyrim Steam 1.6.1170, matching SKSE64, SkyUI SE, and the matching Address Library database.
 
 When a playable prerelease is published:
 

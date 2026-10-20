@@ -28,14 +28,14 @@ The runtime packager supports a Data-relative ZIP suitable for MO2, Vortex and m
 | Catalogue, filtering and pagination | Implemented and tested with synthetic data |
 | Preset planning and staged selection | Implemented and tested; in-memory only |
 | Catalogue and compatibility filters | Implemented; portable tests cover the core and Windows CI builds the SKSE adapter |
-| Player armor appearance hook | Implemented for Steam 1.6.1170; requires in-game validation |
-| Apply, restore and temporary on-character preview | Implemented for armor; requires in-game validation |
-| Armor save/load | Implemented through SKSE serialization; requires in-game validation |
+| Player armor appearance hook | Implemented for Steam 1.6.1170; confirmed working in game |
+| Player weapon appearance hook | Implemented for same-type weapon forms on Steam 1.6.1170; needs in-game validation |
+| Apply, restore and temporary on-character preview | Implemented for armor and weapons; armor confirmed working in game |
+| Armor and weapon save/load | Implemented through SKSE serialization; needs in-game validation |
 | MCM test assets | Compiled in CI and attached to an ESL-flagged test ESP; requires in-game validation |
-| Ten armor-only favorite slots | Implemented in the test build; fixed slot names and in-game save/load still need validation |
-| Weapon appearances and combined armor/weapon outfits | Not implemented |
-| Side-by-side 3D preview | Not implemented; temporary preview changes the player's visible armor only |
-| Complete playable package | Not ready; release gate remains closed pending missing features and game tests |
+| Ten combined outfit favorite slots | Implemented in the test build; fixed names and in-game save/load still need validation |
+| Side-by-side 3D preview | Not implemented; temporary preview changes the player's visible armor or weapons only |
+| Complete playable package | Not ready; side-by-side preview and game validation of new weapon paths remain |
 
 The catalogue adapter snapshots form metadata on the game task queue, then sorts copied data on a worker. The armor hook changes only the player's rendered armor and does not replace inventory items. Snapshot cost, race changes, equipment refresh, serialization and MCM behavior need in-game measurement. Synthetic core tests are not game benchmarks.
 

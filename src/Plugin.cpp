@@ -1,6 +1,7 @@
 // SKSE native catalogue and player-only visual appearance prototype.
 #include "jgjg/Core.hpp"
 #include "ArmorAppearance.h"
+#include "WeaponAppearance.h"
 #include <mutex>
 #include <thread>
 #include <memory>
@@ -90,7 +91,7 @@ std::int32_t CatalogueCount(RE::StaticFunctionTag*) {
 }
 bool IsBuilding(RE::StaticFunctionTag*) { return building.load(); }
 std::string Status(RE::StaticFunctionTag*) {
-	return "Player armor appearances with save support and temporary on-character preview. Side-by-side 3D viewer and weapon appearances are still in development.";
+	return "Player armor and same-type weapon appearances with temporary on-character preview and save support. Side-by-side 3D preview is not available in this build.";
 }
 std::vector<std::string> QueryNames(RE::StaticFunctionTag*, RE::TESForm* target, std::string search, std::string plugin, std::int32_t page) {
     // Only immutable cached metadata is queried here. No player/model access
@@ -156,6 +157,26 @@ std::vector<std::string> GetPlayerWornArmorNames(RE::StaticFunctionTag*) {
     }
     return names;
 }
+std::vector<RE::TESForm*> GetPlayerWornWeapons(RE::StaticFunctionTag*) {
+    auto* player = RE::PlayerCharacter::GetSingleton();
+    if (!player) return {};
+    std::map<RE::FormID, RE::TESForm*> worn;
+    for (bool left : { false, true }) {
+        auto* form = player->GetEquippedObject(left);
+        if (form && form->As<RE::TESObjectWEAP>()) worn.try_emplace(form->GetFormID(), form);
+    }
+    std::vector<RE::TESForm*> result;
+    for (auto& [id, form] : worn) result.push_back(form);
+    return result;
+}
+std::vector<std::string> GetPlayerWornWeaponNames(RE::StaticFunctionTag*) {
+    std::vector<std::string> names;
+    for (auto* form : GetPlayerWornWeapons(nullptr)) {
+        const char* name = form ? form->GetName() : nullptr;
+        names.emplace_back(name && *name ? name : "Unnamed weapon");
+    }
+    return names;
+}
 std::vector<RE::TESForm*> QueryForms(RE::StaticFunctionTag*, RE::TESForm* target,
                                      std::string search, std::string plugin, std::int32_t page) {
     if (!target) return {};
@@ -186,6 +207,8 @@ bool Register(RE::BSScript::IVirtualMachine* vm) {
     vm->RegisterFunction("QueryForms", "JGJGTransmogNative", QueryForms);
     vm->RegisterFunction("GetPlayerWornArmors", "JGJGTransmogNative", GetPlayerWornArmors);
     vm->RegisterFunction("GetPlayerWornArmorNames", "JGJGTransmogNative", GetPlayerWornArmorNames);
+    vm->RegisterFunction("GetPlayerWornWeapons", "JGJGTransmogNative", GetPlayerWornWeapons);
+    vm->RegisterFunction("GetPlayerWornWeaponNames", "JGJGTransmogNative", GetPlayerWornWeaponNames);
     jgjg::engine::RegisterArmorAppearanceFunctions(vm);
     return true;
 }
@@ -194,6 +217,7 @@ SKSEPluginLoad(const SKSE::LoadInterface* skse) {
     // Check before initializing CommonLib or resolving any game address.
     if (skse->RuntimeVersion() != REL::Version{1,6,1170,0}) return false;
     SKSE::Init(skse);
+    SKSE::AllocTrampoline(16);
     if (auto dir = SKSE::log::log_directory()) {
         auto sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>((*dir / "JGJGsTransmogSystem.log").string(), true);
         spdlog::set_default_logger(std::make_shared<spdlog::logger>("JGJG", sink));
@@ -201,6 +225,7 @@ SKSEPluginLoad(const SKSE::LoadInterface* skse) {
     }
     SKSE::log::info("JGJGs Transmog System 0.1.0: player armor appearance prototype, Steam 1.6.1170");
     if (!jgjg::engine::InstallArmorAppearanceHook()) return false;
+    if (!jgjg::engine::InstallWeaponAppearanceHook()) return false;
     if (!jgjg::engine::InstallAppearanceSerialization()) return false;
     SKSE::GetMessagingInterface()->RegisterListener([](SKSE::MessagingInterface::Message* message) {
         if (message->type == SKSE::MessagingInterface::kPreLoadGame || message->type == SKSE::MessagingInterface::kNewGame) {
