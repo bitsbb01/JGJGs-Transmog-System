@@ -13,6 +13,7 @@ namespace jgjg::engine {
 	void RefreshPlayerArmor();
 	std::string GetArmorRenderDiagnostics();
 	std::string GetArmorRenderFormIDs();
+	std::string GetArmorOverrideStatus();
 	bool SetArmorAppearance(RE::TESForm* original, RE::TESForm* appearance);
 	bool ClearArmorAppearance(RE::TESForm* original);
 	bool PreviewArmorAppearance(RE::TESForm* original, RE::TESForm* appearance);

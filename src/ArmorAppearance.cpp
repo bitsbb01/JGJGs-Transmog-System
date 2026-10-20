@@ -421,12 +421,19 @@ void RefreshPlayerArmor() { RefreshPlayerArmorImpl(); }
 
 std::string GetArmorRenderDiagnostics()
 {
+	const auto setOriginal = diagnostics::armor.lastSetOriginal.load(std::memory_order_relaxed);
+	bool liveOverride{};
+	{
+		std::lock_guard lock(overridesMutex);
+		liveOverride = setOriginal && (overrides.contains(setOriginal) || previews.contains(setOriginal));
+	}
 	return std::to_string(diagnostics::armor.refreshRequests.load(std::memory_order_relaxed)) + "/" +
 	       std::to_string(diagnostics::armor.equipmentUpdates.load(std::memory_order_relaxed)) + "/" +
 	       std::to_string(diagnostics::armor.hookCalls.load(std::memory_order_relaxed)) + "/" +
 	       std::to_string(diagnostics::armor.mapMatches.load(std::memory_order_relaxed)) + "/" +
 	       std::to_string(diagnostics::armor.validAppearances.load(std::memory_order_relaxed)) + "/" +
-	       std::to_string(diagnostics::armor.replacements.load(std::memory_order_relaxed));
+	       std::to_string(diagnostics::armor.replacements.load(std::memory_order_relaxed)) + "/" +
+	       (liveOverride ? "1" : "0");
 }
 
 std::string GetArmorRenderFormIDs()
@@ -437,6 +444,14 @@ std::string GetArmorRenderFormIDs()
 	    << std::setw(8) << diagnostics::armor.lastSetAppearance.load(std::memory_order_relaxed) << " / "
 	    << std::setw(8) << diagnostics::armor.lastHookInput.load(std::memory_order_relaxed);
 	return out.str();
+}
+
+std::string GetArmorOverrideStatus()
+{
+	const auto setOriginal = diagnostics::armor.lastSetOriginal.load(std::memory_order_relaxed);
+	if (!setOriginal) return "No recent Apply";
+	std::lock_guard lock(overridesMutex);
+	return overrides.contains(setOriginal) ? "Stored" : previews.contains(setOriginal) ? "Preview only" : "Cleared/missing";
 }
 
 bool SetArmorAppearance(RE::TESForm* original, RE::TESForm* appearance)

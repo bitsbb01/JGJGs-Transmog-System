@@ -97,6 +97,10 @@ std::string ArmorRenderDiagnostics(RE::StaticFunctionTag*) { return jgjg::engine
 std::string WeaponRenderDiagnostics(RE::StaticFunctionTag*) { return jgjg::engine::GetWeaponRenderDiagnostics(); }
 std::string ArmorRenderFormIDs(RE::StaticFunctionTag*) { return jgjg::engine::GetArmorRenderFormIDs(); }
 std::string WeaponRenderFormIDs(RE::StaticFunctionTag*) { return jgjg::engine::GetWeaponRenderFormIDs(); }
+std::string ArmorOverrideStatus(RE::StaticFunctionTag*) { return jgjg::engine::GetArmorOverrideStatus(); }
+std::string WeaponSetFormIDs(RE::StaticFunctionTag*) { return jgjg::engine::GetWeaponSetFormIDs(); }
+std::string WeaponHookFormIDs(RE::StaticFunctionTag*) { return jgjg::engine::GetWeaponHookFormIDs(); }
+std::string WeaponOverrideStatus(RE::StaticFunctionTag*) { return jgjg::engine::GetWeaponOverrideStatus(); }
 std::vector<std::string> QueryNames(RE::StaticFunctionTag*, RE::TESForm* target, std::string search, std::string plugin, std::int32_t page) {
     // Only immutable cached metadata is queried here. No player/model access
     // from the Papyrus VM thread. Form ID is stable while the VM holds its form.
@@ -209,6 +213,10 @@ bool Register(RE::BSScript::IVirtualMachine* vm) {
     vm->RegisterFunction("GetWeaponRenderDiagnostics", "JGJGTransmogNative", WeaponRenderDiagnostics);
     vm->RegisterFunction("GetArmorRenderFormIDs", "JGJGTransmogNative", ArmorRenderFormIDs);
     vm->RegisterFunction("GetWeaponRenderFormIDs", "JGJGTransmogNative", WeaponRenderFormIDs);
+    vm->RegisterFunction("GetArmorOverrideStatus", "JGJGTransmogNative", ArmorOverrideStatus);
+    vm->RegisterFunction("GetWeaponSetFormIDs", "JGJGTransmogNative", WeaponSetFormIDs);
+    vm->RegisterFunction("GetWeaponHookFormIDs", "JGJGTransmogNative", WeaponHookFormIDs);
+    vm->RegisterFunction("GetWeaponOverrideStatus", "JGJGTransmogNative", WeaponOverrideStatus);
     vm->RegisterFunction("QueryNames", "JGJGTransmogNative", QueryNames);
     vm->RegisterFunction("QueryPlugins", "JGJGTransmogNative", QueryPlugins);
     vm->RegisterFunction("QueryPageCount", "JGJGTransmogNative", QueryPageCount);

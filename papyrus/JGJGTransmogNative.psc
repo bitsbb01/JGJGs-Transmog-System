@@ -7,6 +7,10 @@ String Function GetArmorRenderDiagnostics() Global Native
 String Function GetWeaponRenderDiagnostics() Global Native
 String Function GetArmorRenderFormIDs() Global Native
 String Function GetWeaponRenderFormIDs() Global Native
+String Function GetArmorOverrideStatus() Global Native
+String Function GetWeaponSetFormIDs() Global Native
+String Function GetWeaponHookFormIDs() Global Native
+String Function GetWeaponOverrideStatus() Global Native
 String[] Function QueryNames(Form target, String search, String plugin, Int page) Global Native
 String[] Function QueryPlugins(Form target) Global Native
 Int Function QueryPageCount(Form target, String plugin) Global Native

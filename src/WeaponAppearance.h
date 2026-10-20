@@ -19,6 +19,9 @@ bool CancelWeaponPreview(RE::TESForm* original);
 void RefreshPlayerWeapons();
 std::string GetWeaponRenderDiagnostics();
 std::string GetWeaponRenderFormIDs();
+std::string GetWeaponSetFormIDs();
+std::string GetWeaponHookFormIDs();
+std::string GetWeaponOverrideStatus();
 WeaponAppearanceMap GetWeaponAppearanceOverrides();
 void ReplaceWeaponAppearanceOverrides(WeaponAppearanceMap appearances);
 bool AreCompatiblePlayerWeapons(const RE::TESObjectWEAP* original,

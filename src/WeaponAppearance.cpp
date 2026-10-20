@@ -222,24 +222,51 @@ void RefreshPlayerWeapons()
 
 std::string GetWeaponRenderDiagnostics()
 {
+	const auto setOriginal = diagnostics::weapon.lastSetOriginal.load(std::memory_order_relaxed);
+	bool liveOverride{};
+	{
+		std::lock_guard lock(stateMutex);
+		liveOverride = setOriginal && (overrides.contains(setOriginal) || previews.contains(setOriginal));
+	}
 	return std::to_string(diagnostics::weapon.hookCalls.load(std::memory_order_relaxed)) + "/" +
 	       std::to_string(diagnostics::weapon.validSlots.load(std::memory_order_relaxed)) + "/" +
 	       std::to_string(diagnostics::weapon.items.load(std::memory_order_relaxed)) + "/" +
 	       std::to_string(diagnostics::weapon.weapons.load(std::memory_order_relaxed)) + "/" +
 	       std::to_string(diagnostics::weapon.mapMatches.load(std::memory_order_relaxed)) + "/" +
 	       std::to_string(diagnostics::weapon.compatible.load(std::memory_order_relaxed)) + "/" +
-	       std::to_string(diagnostics::weapon.replacements.load(std::memory_order_relaxed));
+	       std::to_string(diagnostics::weapon.replacements.load(std::memory_order_relaxed)) + "/" +
+	       (liveOverride ? "1" : "0");
 }
 
 std::string GetWeaponRenderFormIDs()
 {
+	return GetWeaponSetFormIDs() + " / " + GetWeaponHookFormIDs();
+}
+
+std::string GetWeaponSetFormIDs()
+{
 	std::ostringstream out;
 	out << std::hex << std::uppercase << std::setfill('0')
 	    << std::setw(8) << diagnostics::weapon.lastSetOriginal.load(std::memory_order_relaxed) << ">"
-	    << std::setw(8) << diagnostics::weapon.lastSetAppearance.load(std::memory_order_relaxed) << " / "
+	    << std::setw(8) << diagnostics::weapon.lastSetAppearance.load(std::memory_order_relaxed);
+	return out.str();
+}
+
+std::string GetWeaponHookFormIDs()
+{
+	std::ostringstream out;
+	out << std::hex << std::uppercase << std::setfill('0')
 	    << std::setw(8) << diagnostics::weapon.lastSlotItem.load(std::memory_order_relaxed) << "/"
 	    << std::setw(8) << diagnostics::weapon.lastWeapon.load(std::memory_order_relaxed);
 	return out.str();
+}
+
+std::string GetWeaponOverrideStatus()
+{
+	const auto setOriginal = diagnostics::weapon.lastSetOriginal.load(std::memory_order_relaxed);
+	if (!setOriginal) return "No recent Apply";
+	std::lock_guard lock(stateMutex);
+	return overrides.contains(setOriginal) ? "Stored" : previews.contains(setOriginal) ? "Preview only" : "Cleared/missing";
 }
 
 WeaponAppearanceMap GetWeaponAppearanceOverrides()
