@@ -162,6 +162,7 @@ bool SetWeaponAppearance(RE::TESForm* originalForm, RE::TESForm* appearanceForm)
 	auto* original = originalForm ? originalForm->As<RE::TESObjectWEAP>() : nullptr;
 	auto* appearance = appearanceForm ? appearanceForm->As<RE::TESObjectWEAP>() : nullptr;
 	if (!AreCompatiblePlayerWeapons(original, appearance)) return false;
+	diagnostics::ResetForAppearanceOperation();
 	{
 		std::lock_guard lock(stateMutex);
 		overrides.insert_or_assign(original->GetFormID(), appearance->GetFormID());
@@ -183,7 +184,10 @@ bool ClearWeaponAppearance(RE::TESForm* originalForm)
 		removed = overrides.erase(original->GetFormID()) != 0;
 		removed = previews.erase(original->GetFormID()) != 0 || removed;
 	}
-	if (removed) RefreshPlayerWeapons();
+	if (removed) {
+		diagnostics::ResetForAppearanceOperation();
+		RefreshPlayerWeapons();
+	}
 	return removed;
 }
 
@@ -192,6 +196,7 @@ bool PreviewWeaponAppearance(RE::TESForm* originalForm, RE::TESForm* appearanceF
 	auto* original = originalForm ? originalForm->As<RE::TESObjectWEAP>() : nullptr;
 	auto* appearance = appearanceForm ? appearanceForm->As<RE::TESObjectWEAP>() : nullptr;
 	if (!AreCompatiblePlayerWeapons(original, appearance)) return false;
+	diagnostics::ResetForAppearanceOperation();
 	{
 		std::lock_guard lock(stateMutex);
 		previews.insert_or_assign(original->GetFormID(), appearance->GetFormID());
@@ -209,7 +214,10 @@ bool CancelWeaponPreview(RE::TESForm* originalForm)
 		std::lock_guard lock(stateMutex);
 		removed = previews.erase(original->GetFormID()) != 0;
 	}
-	if (removed) RefreshPlayerWeapons();
+	if (removed) {
+		diagnostics::ResetForAppearanceOperation();
+		RefreshPlayerWeapons();
+	}
 	return removed;
 }
 

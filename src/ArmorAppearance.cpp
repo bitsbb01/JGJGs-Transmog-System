@@ -138,6 +138,7 @@ namespace {
 		    static_cast<std::uint32_t>(original->GetSlotMask()) == 0 ||
 		    !HasPlayerArmorModel(appearance) ||
 		    original->GetSlotMask() != appearance->GetSlotMask()) return false;
+		diagnostics::ResetForAppearanceOperation();
 		{
 			std::lock_guard lock(overridesMutex);
 			overrides.insert_or_assign(original->GetFormID(), appearance->GetFormID());
@@ -159,7 +160,10 @@ namespace {
 			removed = overrides.erase(original->GetFormID()) != 0;
 			removed = previews.erase(original->GetFormID()) != 0 || removed;
 		}
-		if (removed) RefreshPlayerArmor();
+		if (removed) {
+			diagnostics::ResetForAppearanceOperation();
+			RefreshPlayerArmor();
+		}
 		return removed;
 	}
 
@@ -477,6 +481,7 @@ bool PreviewArmorAppearance(RE::TESForm* originalForm, RE::TESForm* appearanceFo
 	    static_cast<std::uint32_t>(original->GetSlotMask()) == 0 ||
 	    !HasPlayerArmorModel(appearance) ||
 	    original->GetSlotMask() != appearance->GetSlotMask()) return false;
+	diagnostics::ResetForAppearanceOperation();
 	{
 		std::lock_guard lock(overridesMutex);
 		previews.insert_or_assign(original->GetFormID(), appearance->GetFormID());
@@ -494,7 +499,10 @@ bool CancelArmorPreview(RE::TESForm* originalForm)
 		std::lock_guard lock(overridesMutex);
 		removed = previews.erase(original->GetFormID()) != 0;
 	}
-	if (removed) RefreshPlayerArmorImpl();
+	if (removed) {
+		diagnostics::ResetForAppearanceOperation();
+		RefreshPlayerArmorImpl();
+	}
 	return removed;
 }
 
