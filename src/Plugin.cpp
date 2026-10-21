@@ -16,7 +16,16 @@ public:
     RE::BSEventNotifyControl ProcessEvent(const RE::MenuOpenCloseEvent* event,
         RE::BSTEventSource<RE::MenuOpenCloseEvent>*) override {
         if (event && !event->opening && event->menuName == "Journal Menu") {
-            SKSE::GetTaskInterface()->AddTask([] { jgjg::engine::RebuildPendingPlayerWeapons(); });
+            // Menu-close events can fire while the UI is still transitioning
+            // back to gameplay. Defer the equipment rebuild by one additional
+            // task-queue turn so the player model is ready to accept it.
+            if (auto* tasks = SKSE::GetTaskInterface()) {
+                tasks->AddTask([] {
+                    if (auto* nextTasks = SKSE::GetTaskInterface()) {
+                        nextTasks->AddTask([] { jgjg::engine::RebuildPendingPlayerWeapons(); });
+                    }
+                });
+            }
         }
         return RE::BSEventNotifyControl::kContinue;
     }
