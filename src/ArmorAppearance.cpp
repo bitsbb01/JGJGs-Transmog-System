@@ -3,6 +3,7 @@
 #include "RenderDiagnostics.h"
 
 #include <RE/Skyrim.h>
+#include <RE/I/InventoryChanges.h>
 #include <SKSE/SKSE.h>
 #include <safetyhook.hpp>
 
@@ -11,6 +12,7 @@
 #include <memory>
 #include <array>
 #include <algorithm>
+#include <atomic>
 #include <cstddef>
 #include <string>
 #include <sstream>
@@ -25,6 +27,7 @@ namespace {
 	std::mutex overridesMutex;
 	SafetyHookInline applyArmorAddonHook;
 	thread_local bool refreshingPlayerAppearance{};
+	std::atomic<bool> pendingEquippedArmorRebuild{};
 	constexpr std::uint32_t kSerializationUID = 0x4A475453;  // JGTS
 	constexpr std::uint32_t kAppearanceRecord = 0x41524D4F;  // ARMO
 	constexpr std::uint32_t kPresetRecord = 0x50525354;       // PRST
@@ -127,6 +130,14 @@ namespace {
 		diagnostics::armor.equipmentUpdates.fetch_add(1, std::memory_order_relaxed);
 	}
 
+	void RefreshPlayerArmorForAppearanceChange()
+	{
+		// The Journal menu can defer the player's worn-mesh rebuild. Re-equip the
+		// exact same worn armor instance after the menu closes to refresh it.
+		pendingEquippedArmorRebuild.store(true, std::memory_order_release);
+		RefreshPlayerArmorImpl();
+	}
+
 	bool SetArmorAppearanceNative(RE::StaticFunctionTag*, RE::TESForm* originalForm,
 	                              RE::TESForm* appearanceForm)
 	{
@@ -146,7 +157,7 @@ namespace {
 		}
 		diagnostics::armor.lastSetOriginal.store(original->GetFormID(), std::memory_order_relaxed);
 		diagnostics::armor.lastSetAppearance.store(appearance->GetFormID(), std::memory_order_relaxed);
-		RefreshPlayerArmor();
+		RefreshPlayerArmorForAppearanceChange();
 		return true;
 	}
 
@@ -162,7 +173,7 @@ namespace {
 		}
 		if (removed) {
 			diagnostics::ResetForAppearanceOperation();
-			RefreshPlayerArmor();
+		RefreshPlayerArmorForAppearanceChange();
 		}
 		return removed;
 	}
@@ -244,7 +255,7 @@ namespace {
 			lastPresetSkipped = skipped;
 		}
 		ReplaceWeaponAppearanceOverrides(std::move(restoredWeapons));
-		RefreshPlayerArmor();
+		RefreshPlayerArmorForAppearanceChange();
 		return true;
 	}
 
@@ -428,6 +439,49 @@ bool InstallAppearanceSerialization()
 
 void RefreshPlayerArmor() { RefreshPlayerArmorImpl(); }
 
+void RebuildPendingPlayerArmor()
+{
+	if (!pendingEquippedArmorRebuild.load(std::memory_order_acquire)) return;
+	auto* player = RE::PlayerCharacter::GetSingleton();
+	auto* equipManager = RE::ActorEquipManager::GetSingleton();
+	if (!player || !equipManager) return;
+	auto* inventoryChanges = player->GetInventoryChanges();
+	if (!inventoryChanges || !inventoryChanges->entryList) return;
+	if (!pendingEquippedArmorRebuild.exchange(false, std::memory_order_acq_rel)) return;
+	const bool wasRefreshing = refreshingPlayerAppearance;
+	refreshingPlayerAppearance = true;
+	for (auto* entry : *inventoryChanges->entryList) {
+		auto* armor = entry && entry->object ? entry->object->As<RE::TESObjectARMO>() : nullptr;
+		if (!armor || !entry) continue;
+		{
+			std::lock_guard lock(overridesMutex);
+			if (!overrides.contains(armor->GetFormID()) && !previews.contains(armor->GetFormID())) continue;
+		}
+
+		RE::ExtraDataList* wornExtra{};
+		if (entry->extraLists) {
+			for (auto* extra : *entry->extraLists) {
+				if (extra && (extra->HasType(RE::ExtraDataType::kWorn) ||
+				              extra->HasType(RE::ExtraDataType::kWornLeft))) {
+					wornExtra = extra;
+					break;
+				}
+			}
+		}
+		// If we cannot identify the worn instance, leave it alone. This avoids
+		// guessing which duplicate item carries its enchantments or other extras.
+		auto* equipSlot = armor->GetEquipSlot();
+		if (!wornExtra || !equipSlot) continue;
+		if (equipManager->UnequipObject(player, armor, wornExtra, 1, equipSlot,
+		                                true, false, false, true)) {
+			equipManager->EquipObject(player, armor, wornExtra, 1, equipSlot,
+			                         true, false, false, true);
+		}
+	}
+	player->DoReset3D(false);
+	refreshingPlayerAppearance = wasRefreshing;
+}
+
 std::string GetArmorRenderDiagnostics()
 {
 	const auto setOriginal = diagnostics::armor.lastSetOriginal.load(std::memory_order_relaxed);
@@ -486,7 +540,7 @@ bool PreviewArmorAppearance(RE::TESForm* originalForm, RE::TESForm* appearanceFo
 		std::lock_guard lock(overridesMutex);
 		previews.insert_or_assign(original->GetFormID(), appearance->GetFormID());
 	}
-	RefreshPlayerArmorImpl();
+	RefreshPlayerArmorForAppearanceChange();
 	return true;
 }
 
@@ -501,7 +555,7 @@ bool CancelArmorPreview(RE::TESForm* originalForm)
 	}
 	if (removed) {
 		diagnostics::ResetForAppearanceOperation();
-		RefreshPlayerArmorImpl();
+		RefreshPlayerArmorForAppearanceChange();
 	}
 	return removed;
 }

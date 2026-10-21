@@ -11,6 +11,7 @@ namespace jgjg::engine {
 	bool InstallArmorAppearanceHook();
 	bool InstallAppearanceSerialization();
 	void RefreshPlayerArmor();
+	void RebuildPendingPlayerArmor();
 	std::string GetArmorRenderDiagnostics();
 	std::string GetArmorRenderFormIDs();
 	std::string GetArmorOverrideStatus();

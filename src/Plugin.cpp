@@ -22,7 +22,10 @@ public:
             if (auto* tasks = SKSE::GetTaskInterface()) {
                 tasks->AddTask([] {
                     if (auto* nextTasks = SKSE::GetTaskInterface()) {
-                        nextTasks->AddTask([] { jgjg::engine::RebuildPendingPlayerWeapons(); });
+                        nextTasks->AddTask([] {
+                            jgjg::engine::RebuildPendingPlayerArmor();
+                            jgjg::engine::RebuildPendingPlayerWeapons();
+                        });
                     }
                 });
             }

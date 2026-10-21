@@ -28,14 +28,14 @@ The runtime packager supports a Data-relative ZIP suitable for MO2, Vortex and m
 | Catalogue, filtering and pagination | Implemented and tested with synthetic data |
 | Preset planning and staged selection | Implemented and tested; in-memory only |
 | Catalogue and compatibility filters | Implemented; portable tests cover the core and Windows CI builds the SKSE adapter |
-| Player armor appearance hook | Implemented for Steam 1.6.1170; model replacement needs diagnosis |
-| Player weapon appearance hook | Same-type weapon forms on Steam 1.6.1170; model replacement needs diagnosis |
-| Apply, restore and temporary on-character preview | Selections save, but visual changes are not currently confirmed |
+| Player armor appearance hook | Implemented for Steam 1.6.1170; deferred same-instance refresh added, in-game validation pending |
+| Player weapon appearance hook | Same-type swaps confirmed in game after sheathe/draw; automatic refresh still under test |
+| Apply, restore and temporary on-character preview | Apply is confirmed for weapons; armor, temporary preview and cancel restoration still need in-game validation |
 | Armor and weapon save/load | Implemented through SKSE serialization; confirmed working in game |
 | MCM test assets | Compiled in CI and attached to an ESL-flagged test ESP; confirmed working in game |
 | Ten combined outfit favorite slots | Armor and weapon appearance choices; confirmed working in game |
 | Side-by-side 3D preview | Disabled; a separate isolated UI render scene is needed |
-| Complete playable package | Not ready; apply and preview currently fail in-game |
+| Complete playable package | Not ready; armor and preview validation and the separate 3D viewer remain outstanding |
 
 The catalogue adapter snapshots form metadata on the game task queue, then sorts copied data on a worker. Appearance mappings are stored without replacing the equipped items. A development-status page now reports refresh and renderer-hook counters to diagnose why models are not changing. Synthetic core tests are not game benchmarks.
 
