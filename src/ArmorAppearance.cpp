@@ -72,6 +72,17 @@ namespace {
 	bool IsWornArmorForm(RE::FormID formID)
 	{
 		auto* player = RE::PlayerCharacter::GetSingleton();
+		if (!player) return false;
+		// Ask the actor's worn-armor cache first. This includes equipped runtime
+		// armor objects that do not appear as the stable inventory form in the
+		// inventory-change extra-list scan below.
+		if (player->GetWornArmor(formID, true)) return true;
+		for (std::uint32_t bit = 0; bit < 32; ++bit) {
+			auto* worn = player->GetWornArmor(
+				static_cast<RE::BGSBipedObjectForm::BipedObjectSlot>(1u << bit), true);
+			if (worn && (worn->GetFormID() == formID ||
+			             (worn->templateArmor && worn->templateArmor->GetFormID() == formID))) return true;
+		}
 		auto* changes = player ? player->GetInventoryChanges() : nullptr;
 		if (!changes || !changes->entryList) return false;
 		for (auto* entry : *changes->entryList) {
