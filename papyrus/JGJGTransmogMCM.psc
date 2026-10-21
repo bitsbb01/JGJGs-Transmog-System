@@ -38,7 +38,8 @@ EndEvent
 Event OnPageReset(String page)
     SetCursorFillMode(TOP_TO_BOTTOM)
     If page == "Development status"
-        AddHeaderOption("Player appearance system")
+        AddHeaderOption("BUILD ID: ARMOR-REDRAW-02")
+        AddTextOption("Build check", "New script loaded", OPTION_FLAG_DISABLED)
         AddTextOption("Armor appearances", "Refresh test build")
         AddTextOption("Weapon appearances", "Swaps confirmed; redraw")
         AddTextOption("Save/load favorites", "Armor and weapons")
@@ -108,13 +109,13 @@ Event OnOptionSelect(Int option)
         ElseIf weaponMode == 1
             If JGJGTransmogNative.SetWeaponAppearance(targetItem, selectedAppearance)
                 RefreshPlayerMeshes()
-                ShowMessage("Weapon appearance applied. The equipped item, enchantment, and stats were not changed.", False)
+                ShowMessage("Weapon appearance saved. Close the MCM to refresh the equipped model.", False)
             Else
                 ShowMessage("Could not apply that appearance. Choose a weapon of the same type.", False)
             EndIf
         ElseIf JGJGTransmogNative.SetArmorAppearance(targetItem, selectedAppearance)
             RefreshPlayerMeshes()
-            ShowMessage("Armor appearance applied. Your equipped item and its stats were not changed.", False)
+            ShowMessage("Armor appearance saved. Close the MCM to refresh the worn model.", False)
         Else
             ShowMessage("Could not apply that appearance. Choose armor with matching body slots.", False)
         EndIf
@@ -124,13 +125,13 @@ Event OnOptionSelect(Int option)
         ElseIf weaponMode == 1
             If JGJGTransmogNative.PreviewWeaponAppearance(targetItem, selectedAppearance)
                 RefreshPlayerMeshes()
-                ShowMessage("Temporary weapon preview is active. Apply to keep it, or cancel to restore the saved appearance.", False)
+                ShowMessage("Weapon preview staged. Close the MCM to view it on your character; reopen to Apply or Cancel.", False)
             Else
                 ShowMessage("Could not preview that appearance. Choose a weapon of the same type.", False)
             EndIf
         ElseIf JGJGTransmogNative.PreviewArmorAppearance(targetItem, selectedAppearance)
             RefreshPlayerMeshes()
-            ShowMessage("Temporary armor preview is active. Apply to keep it, or cancel to restore the saved appearance.", False)
+            ShowMessage("Armor preview staged. Close the MCM to view it on your character; reopen to Apply or Cancel.", False)
         Else
             ShowMessage("Could not preview that appearance. Choose armor with matching body slots.", False)
         EndIf
