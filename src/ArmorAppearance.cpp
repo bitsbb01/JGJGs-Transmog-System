@@ -99,7 +99,24 @@ namespace {
 	{
 		RE::FormID appearance{};
 		std::uint32_t sourceSlots{};
+		std::uint32_t sharedAddons{};
 	};
+
+	std::uint32_t CountSharedArmorAddons(const RE::TESObjectARMO* left, const RE::TESObjectARMO* right)
+	{
+		if (!left || !right) return 0;
+		std::uint32_t shared{};
+		for (auto* leftAddon : left->armorAddons) {
+			if (!leftAddon) continue;
+			for (auto* rightAddon : right->armorAddons) {
+				if (rightAddon == leftAddon) {
+					++shared;
+					break;
+				}
+			}
+		}
+		return shared;
+	}
 
 	WornAppearanceMatch FindUniqueWornAppearanceForSlots(RE::TESObjectARMO* hookArmor)
 	{
@@ -119,7 +136,7 @@ namespace {
 				if (!source || !IsWornArmorForm(sourceID)) continue;
 				const auto sourceSlots = static_cast<std::uint32_t>(source->GetSlotMask());
 				if ((sourceSlots & hookSlots) != 0)
-					candidates.push_back({ appearanceID, sourceSlots });
+					candidates.push_back({ appearanceID, sourceSlots, CountSharedArmorAddons(source, hookArmor) });
 			}
 			for (const auto& [sourceID, appearanceID] : previews) {
 				if (overrides.contains(sourceID)) continue;
@@ -127,9 +144,19 @@ namespace {
 				if (!source || !IsWornArmorForm(sourceID)) continue;
 				const auto sourceSlots = static_cast<std::uint32_t>(source->GetSlotMask());
 				if ((sourceSlots & hookSlots) != 0)
-					candidates.push_back({ appearanceID, sourceSlots });
+					candidates.push_back({ appearanceID, sourceSlots, CountSharedArmorAddons(source, hookArmor) });
 			}
 		}
+		const auto bestAddonMatch = std::max_element(candidates.begin(), candidates.end(),
+			[](const auto& left, const auto& right) { return left.sharedAddons < right.sharedAddons; });
+		if (bestAddonMatch != candidates.end() && bestAddonMatch->sharedAddons > 0) {
+			const auto bestCount = bestAddonMatch->sharedAddons;
+			std::erase_if(candidates, [bestCount](const auto& candidate) {
+				return candidate.sharedAddons != bestCount;
+			});
+		}
+		diagnostics::armor.lastWornMatchCandidates.store(
+			static_cast<std::uint32_t>(candidates.size()), std::memory_order_relaxed);
 		return candidates.size() == 1 ? candidates.front() : WornAppearanceMatch{};
 	}
 
@@ -581,7 +608,7 @@ std::string GetArmorRenderDiagnostics()
 		std::lock_guard lock(overridesMutex);
 		liveOverride = setOriginal && (overrides.contains(setOriginal) || previews.contains(setOriginal));
 	}
-	return "DLL07 " + std::to_string(diagnostics::armor.refreshRequests.load(std::memory_order_relaxed)) + "/" +
+	return "DLL08 " + std::to_string(diagnostics::armor.refreshRequests.load(std::memory_order_relaxed)) + "/" +
 	       std::to_string(diagnostics::armor.equipmentUpdates.load(std::memory_order_relaxed)) + "/" +
 	       std::to_string(diagnostics::armor.hookCalls.load(std::memory_order_relaxed)) + "/" +
 	       std::to_string(diagnostics::armor.mapMatches.load(std::memory_order_relaxed)) + "/" +
@@ -612,7 +639,8 @@ std::string GetArmorRenderContext()
 	    << "H:" << std::setw(8) << hookID
 	    << " S:" << hookSlots
 	    << " O:" << (source ? static_cast<std::uint32_t>(source->GetSlotMask()) : 0)
-	    << " W:" << (sourceByForm ? '1' : '0');
+	    << " W:" << (sourceByForm ? '1' : '0')
+	    << " C:" << diagnostics::armor.lastWornMatchCandidates.load(std::memory_order_relaxed);
 	return out.str();
 }
 

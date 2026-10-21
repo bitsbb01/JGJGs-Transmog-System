@@ -38,7 +38,7 @@ EndEvent
 Event OnPageReset(String page)
     SetCursorFillMode(TOP_TO_BOTTOM)
     If page == "Development status"
-        AddHeaderOption("BUILD ID: ARMOR-SLOT-OVERLAP-07")
+        AddHeaderOption("BUILD ID: ARMOR-ADDON-MATCH-08")
         AddTextOption("Build check", "New script loaded", OPTION_FLAG_DISABLED)
         AddTextOption("Armor appearances", "Refresh test build")
         AddTextOption("Weapon appearances", "Swaps confirmed; redraw")

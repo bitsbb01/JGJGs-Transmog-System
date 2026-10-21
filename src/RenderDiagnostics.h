@@ -16,6 +16,7 @@ namespace jgjg::engine::diagnostics {
 		std::atomic<std::uint32_t> lastHookInput{};
 		std::atomic<std::uint32_t> lastHookTemplate{};
 		std::atomic<std::uint32_t> lastHookSlots{};
+		std::atomic<std::uint32_t> lastWornMatchCandidates{};
 	};
 	struct WeaponCounters {
 		std::atomic<std::uint32_t> hookCalls{};
@@ -47,6 +48,7 @@ namespace jgjg::engine::diagnostics {
 		armor.lastHookInput.store(0, std::memory_order_relaxed);
 		armor.lastHookTemplate.store(0, std::memory_order_relaxed);
 		armor.lastHookSlots.store(0, std::memory_order_relaxed);
+		armor.lastWornMatchCandidates.store(0, std::memory_order_relaxed);
 		weapon.hookCalls.store(0, std::memory_order_relaxed);
 		weapon.validSlots.store(0, std::memory_order_relaxed);
 		weapon.items.store(0, std::memory_order_relaxed);
