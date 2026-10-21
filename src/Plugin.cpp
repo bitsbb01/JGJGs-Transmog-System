@@ -2,6 +2,8 @@
 #include "jgjg/Core.hpp"
 #include "ArmorAppearance.h"
 #include "WeaponAppearance.h"
+#include <RE/M/MenuOpenCloseEvent.h>
+#include <RE/U/UI.h>
 #include <mutex>
 #include <thread>
 #include <memory>
@@ -9,6 +11,19 @@
 #include <spdlog/sinks/basic_file_sink.h>
 
 namespace {
+class WeaponRefreshMenuSink final : public RE::BSTEventSink<RE::MenuOpenCloseEvent> {
+public:
+    RE::BSEventNotifyControl ProcessEvent(const RE::MenuOpenCloseEvent* event,
+        RE::BSTEventSource<RE::MenuOpenCloseEvent>*) override {
+        if (event && !event->opening && event->menuName == "Journal Menu") {
+            SKSE::GetTaskInterface()->AddTask([] { jgjg::engine::RebuildPendingPlayerWeapons(); });
+        }
+        return RE::BSEventNotifyControl::kContinue;
+    }
+};
+WeaponRefreshMenuSink weaponRefreshMenuSink;
+bool weaponRefreshMenuSinkRegistered{};
+
 std::mutex gate;
 struct Snapshot {
     jgjg::Catalogue catalogue;
@@ -247,6 +262,13 @@ SKSEPluginLoad(const SKSE::LoadInterface* skse) {
         if (message->type == SKSE::MessagingInterface::kPreLoadGame || message->type == SKSE::MessagingInterface::kNewGame) {
             std::lock_guard lock(gate); ++generation; catalogue.reset();
             jgjg::engine::ClearAllArmorAppearances();
+        } else if (message->type == SKSE::MessagingInterface::kDataLoaded) {
+            if (auto* ui = RE::UI::GetSingleton()) {
+                if (auto* source = ui->GetEventSource<RE::MenuOpenCloseEvent>(); source && !weaponRefreshMenuSinkRegistered) {
+                    source->AddEventSink(&weaponRefreshMenuSink);
+                    weaponRefreshMenuSinkRegistered = true;
+                }
+            }
         } else if (message->type == SKSE::MessagingInterface::kPostLoadGame) {
             jgjg::engine::RefreshPlayerArmor();
         }

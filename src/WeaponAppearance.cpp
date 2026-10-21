@@ -7,6 +7,7 @@
 #include <mutex>
 #include <sstream>
 #include <iomanip>
+#include <atomic>
 
 namespace jgjg::engine {
 namespace {
@@ -26,6 +27,7 @@ LoadPartFn loadPartOriginal{};
 WeaponAppearanceMap overrides;
 WeaponAppearanceMap previews;
 std::mutex stateMutex;
+std::atomic<bool> pendingEquippedWeaponRebuild{ false };
 
 enum class WeaponKind : std::uint8_t {
 	Sword, Dagger, Waraxe, Mace, Greatsword, Battleaxe, Warhammer, Bow, Crossbow, Staff, Invalid
@@ -225,7 +227,53 @@ void RefreshPlayerWeapons()
 {
 	// The equipment update refreshes biped parts without unequipping or
 	// replacing the real weapon instance.
+	pendingEquippedWeaponRebuild.store(true, std::memory_order_release);
 	jgjg::engine::RefreshPlayerArmor();
+}
+
+void RebuildPendingPlayerWeapons()
+{
+	if (!pendingEquippedWeaponRebuild.load(std::memory_order_acquire)) return;
+	auto* player = RE::PlayerCharacter::GetSingleton();
+	auto* equipManager = RE::ActorEquipManager::GetSingleton();
+	auto* defaults = RE::BGSDefaultObjectManager::GetSingleton();
+	if (!player || !equipManager || !defaults) return;
+	if (!pendingEquippedWeaponRebuild.exchange(false, std::memory_order_acq_rel)) return;
+
+	for (const bool leftHand : { false, true }) {
+		auto* equipped = player->GetEquippedObject(leftHand);
+		auto* weapon = equipped ? equipped->As<RE::TESObjectWEAP>() : nullptr;
+		if (!weapon) continue;
+		{
+			std::lock_guard lock(stateMutex);
+			if (!overrides.contains(weapon->GetFormID()) && !previews.contains(weapon->GetFormID())) continue;
+		}
+
+		auto* entry = player->GetEquippedEntryData(leftHand);
+		RE::ExtraDataList* extraList{};
+		if (entry && entry->extraLists) {
+			const auto wornType = leftHand ? RE::ExtraDataType::kWornLeft : RE::ExtraDataType::kWorn;
+			for (auto* candidate : *entry->extraLists) {
+				if (candidate && candidate->HasType(static_cast<std::uint32_t>(wornType))) {
+					extraList = candidate;
+					break;
+				}
+			}
+		}
+
+		const auto slotID = leftHand
+			? RE::BGSDefaultObjectManager::DefaultObject::kLeftHandEquip
+			: RE::BGSDefaultObjectManager::DefaultObject::kRightHandEquip;
+		auto* slotForm = defaults->GetObject(slotID);
+		auto* slot = slotForm ? slotForm->As<RE::BGSEquipSlot>() : nullptr;
+		if (!slot) continue;
+
+		// Rebuild only the already-equipped item instance. Passing its existing
+		// extra data and hand slot preserves enchantments, poison and hand choice.
+		if (equipManager->UnequipObject(player, weapon, extraList, 1, slot, true, false, false, true)) {
+			equipManager->EquipObject(player, weapon, extraList, 1, slot, true, false, false, true);
+		}
+	}
 }
 
 std::string GetWeaponRenderDiagnostics()

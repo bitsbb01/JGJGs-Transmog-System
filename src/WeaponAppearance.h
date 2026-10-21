@@ -17,6 +17,7 @@ bool ClearWeaponAppearance(RE::TESForm* original);
 bool PreviewWeaponAppearance(RE::TESForm* original, RE::TESForm* appearance);
 bool CancelWeaponPreview(RE::TESForm* original);
 void RefreshPlayerWeapons();
+void RebuildPendingPlayerWeapons();
 std::string GetWeaponRenderDiagnostics();
 std::string GetWeaponRenderFormIDs();
 std::string GetWeaponSetFormIDs();
