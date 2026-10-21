@@ -75,11 +75,21 @@ namespace {
 		RE::FormID appearanceID{};
 		{
 			std::lock_guard lock(overridesMutex);
-			if (const auto preview = previews.find(original->GetFormID()); preview != previews.end()) {
-				appearanceID = preview->second;
-			} else if (const auto saved = overrides.find(original->GetFormID()); saved != overrides.end()) {
-				appearanceID = saved->second;
-			} else {
+			auto findAppearance = [&](RE::FormID id) {
+				if (const auto preview = previews.find(id); preview != previews.end()) {
+					appearanceID = preview->second;
+					return true;
+				}
+				if (const auto saved = overrides.find(id); saved != overrides.end()) {
+					appearanceID = saved->second;
+					return true;
+				}
+				return false;
+			};
+			// Some equipped armor is represented by a runtime/template form while
+			// the MCM stores the stable inventory ARMO form. Resolve both identities.
+			if (!findAppearance(original->GetFormID()) &&
+			    (!original->templateArmor || !findAppearance(original->templateArmor->GetFormID()))) {
 				return nullptr;
 			}
 		}
