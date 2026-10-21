@@ -254,7 +254,7 @@ void RebuildPendingPlayerWeapons()
 		if (entry && entry->extraLists) {
 			const auto wornType = leftHand ? RE::ExtraDataType::kWornLeft : RE::ExtraDataType::kWorn;
 			for (auto* candidate : *entry->extraLists) {
-				if (candidate && candidate->HasType(static_cast<std::uint32_t>(wornType))) {
+				if (candidate && candidate->HasType(wornType)) {
 					extraList = candidate;
 					break;
 				}
