@@ -123,6 +123,8 @@ std::string Status(RE::StaticFunctionTag*) {
 std::string ArmorRenderDiagnostics(RE::StaticFunctionTag*) { return jgjg::engine::GetArmorRenderDiagnostics(); }
 std::string WeaponRenderDiagnostics(RE::StaticFunctionTag*) { return jgjg::engine::GetWeaponRenderDiagnostics(); }
 std::string ArmorRenderFormIDs(RE::StaticFunctionTag*) { return jgjg::engine::GetArmorRenderFormIDs(); }
+std::string ArmorRenderContext(RE::StaticFunctionTag*) { return jgjg::engine::GetArmorRenderContext(); }
+std::string PlayerWornArmorFormIDs(RE::StaticFunctionTag*) { return jgjg::engine::GetPlayerWornArmorFormIDs(); }
 std::string WeaponRenderFormIDs(RE::StaticFunctionTag*) { return jgjg::engine::GetWeaponRenderFormIDs(); }
 std::string ArmorOverrideStatus(RE::StaticFunctionTag*) { return jgjg::engine::GetArmorOverrideStatus(); }
 std::string WeaponSetFormIDs(RE::StaticFunctionTag*) { return jgjg::engine::GetWeaponSetFormIDs(); }
@@ -239,6 +241,8 @@ bool Register(RE::BSScript::IVirtualMachine* vm) {
     vm->RegisterFunction("GetArmorRenderDiagnostics", "JGJGTransmogNative", ArmorRenderDiagnostics);
     vm->RegisterFunction("GetWeaponRenderDiagnostics", "JGJGTransmogNative", WeaponRenderDiagnostics);
     vm->RegisterFunction("GetArmorRenderFormIDs", "JGJGTransmogNative", ArmorRenderFormIDs);
+    vm->RegisterFunction("GetArmorRenderContext", "JGJGTransmogNative", ArmorRenderContext);
+    vm->RegisterFunction("GetPlayerWornArmorFormIDs", "JGJGTransmogNative", PlayerWornArmorFormIDs);
     vm->RegisterFunction("GetWeaponRenderFormIDs", "JGJGTransmogNative", WeaponRenderFormIDs);
     vm->RegisterFunction("GetArmorOverrideStatus", "JGJGTransmogNative", ArmorOverrideStatus);
     vm->RegisterFunction("GetWeaponSetFormIDs", "JGJGTransmogNative", WeaponSetFormIDs);

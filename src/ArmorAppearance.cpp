@@ -121,6 +121,10 @@ namespace {
 	{
 		if (!original) return nullptr;
 		diagnostics::armor.lastHookInput.store(original->GetFormID(), std::memory_order_relaxed);
+		diagnostics::armor.lastHookTemplate.store(
+			original->templateArmor ? original->templateArmor->GetFormID() : 0, std::memory_order_relaxed);
+		diagnostics::armor.lastHookSlots.store(
+			static_cast<std::uint32_t>(original->GetSlotMask()), std::memory_order_relaxed);
 		RE::FormID appearanceID{};
 		{
 			std::lock_guard lock(overridesMutex);
@@ -570,6 +574,47 @@ std::string GetArmorRenderFormIDs()
 	    << std::setw(8) << diagnostics::armor.lastSetAppearance.load(std::memory_order_relaxed) << " / "
 	    << std::setw(8) << diagnostics::armor.lastHookInput.load(std::memory_order_relaxed);
 	return out.str();
+}
+
+std::string GetArmorRenderContext()
+{
+	const auto hookID = diagnostics::armor.lastHookInput.load(std::memory_order_relaxed);
+	const auto templateID = diagnostics::armor.lastHookTemplate.load(std::memory_order_relaxed);
+	const auto hookSlots = diagnostics::armor.lastHookSlots.load(std::memory_order_relaxed);
+	const auto sourceID = diagnostics::armor.lastSetOriginal.load(std::memory_order_relaxed);
+	auto* source = RE::TESForm::LookupByID<RE::TESObjectARMO>(sourceID);
+	auto* player = RE::PlayerCharacter::GetSingleton();
+	const bool sourceByForm = player && player->GetWornArmor(sourceID, true);
+	std::ostringstream out;
+	out << std::hex << std::uppercase << std::setfill('0')
+	    << "H:" << std::setw(8) << hookID
+	    << " T:" << std::setw(8) << templateID
+	    << " S:" << std::setw(8) << hookSlots
+	    << " O:" << std::setw(8) << (source ? static_cast<std::uint32_t>(source->GetSlotMask()) : 0)
+	    << " W:" << (sourceByForm ? '1' : '0');
+	return out.str();
+}
+
+std::string GetPlayerWornArmorFormIDs()
+{
+	std::map<RE::FormID, std::uint32_t> worn;
+	auto* player = RE::PlayerCharacter::GetSingleton();
+	if (player) {
+		for (std::uint32_t bit = 0; bit < 32; ++bit) {
+			auto* armor = player->GetWornArmor(
+				static_cast<RE::BGSBipedObjectForm::BipedObjectSlot>(1u << bit), true);
+			if (armor) worn.try_emplace(armor->GetFormID(), static_cast<std::uint32_t>(armor->GetSlotMask()));
+		}
+	}
+	std::ostringstream out;
+	out << std::hex << std::uppercase << std::setfill('0');
+	bool first = true;
+	for (const auto& [id, slots] : worn) {
+		if (!first) out << ' ';
+		first = false;
+		out << std::setw(8) << id << ':' << std::setw(8) << slots;
+	}
+	return first ? "none" : out.str();
 }
 
 std::string GetArmorOverrideStatus()

@@ -6,6 +6,8 @@ String Function Status() Global Native
 String Function GetArmorRenderDiagnostics() Global Native
 String Function GetWeaponRenderDiagnostics() Global Native
 String Function GetArmorRenderFormIDs() Global Native
+String Function GetArmorRenderContext() Global Native
+String Function GetPlayerWornArmorFormIDs() Global Native
 String Function GetWeaponRenderFormIDs() Global Native
 String Function GetArmorOverrideStatus() Global Native
 String Function GetWeaponSetFormIDs() Global Native
