@@ -95,26 +95,42 @@ namespace {
 		return false;
 	}
 
-	RE::FormID FindUniqueWornAppearanceForSlots(RE::TESObjectARMO* hookArmor)
+	struct WornAppearanceMatch
 	{
-		if (!hookArmor) return 0;
-		const auto slots = hookArmor->GetSlotMask();
-		std::vector<RE::FormID> candidates;
+		RE::FormID appearance{};
+		std::uint32_t sourceSlots{};
+	};
+
+	WornAppearanceMatch FindUniqueWornAppearanceForSlots(RE::TESObjectARMO* hookArmor)
+	{
+		if (!hookArmor) return {};
+		const auto hookSlots = static_cast<std::uint32_t>(hookArmor->GetSlotMask());
+		std::vector<WornAppearanceMatch> candidates;
 		{
 			std::lock_guard lock(overridesMutex);
-			auto addCandidates = [&](const auto& mappings) {
-				for (const auto& [sourceID, appearanceID] : mappings) {
-					auto* source = RE::TESForm::LookupByID<RE::TESObjectARMO>(sourceID);
-					if (source && source->GetSlotMask() == slots && IsWornArmorForm(sourceID))
-						candidates.push_back(appearanceID);
-				}
-			};
-			addCandidates(overrides);
-			addCandidates(previews);
+			// A hook call can be made for an armor proxy whose mask contains
+			// additional engine-managed bits. The stable equipped source still
+			// has the authoritative mask, so use intersection here and validate
+			// the selected appearance against that source below.
+			for (const auto& [sourceID, savedAppearance] : overrides) {
+				const auto preview = previews.find(sourceID);
+				const auto appearanceID = preview != previews.end() ? preview->second : savedAppearance;
+				auto* source = RE::TESForm::LookupByID<RE::TESObjectARMO>(sourceID);
+				if (!source || !IsWornArmorForm(sourceID)) continue;
+				const auto sourceSlots = static_cast<std::uint32_t>(source->GetSlotMask());
+				if ((sourceSlots & hookSlots) != 0)
+					candidates.push_back({ appearanceID, sourceSlots });
+			}
+			for (const auto& [sourceID, appearanceID] : previews) {
+				if (overrides.contains(sourceID)) continue;
+				auto* source = RE::TESForm::LookupByID<RE::TESObjectARMO>(sourceID);
+				if (!source || !IsWornArmorForm(sourceID)) continue;
+				const auto sourceSlots = static_cast<std::uint32_t>(source->GetSlotMask());
+				if ((sourceSlots & hookSlots) != 0)
+					candidates.push_back({ appearanceID, sourceSlots });
+			}
 		}
-		std::sort(candidates.begin(), candidates.end());
-		candidates.erase(std::unique(candidates.begin(), candidates.end()), candidates.end());
-		return candidates.size() == 1 ? candidates.front() : 0;
+		return candidates.size() == 1 ? candidates.front() : WornAppearanceMatch{};
 	}
 
 	RE::TESObjectARMO* ResolveOverride(RE::TESObjectARMO* original)
@@ -126,6 +142,7 @@ namespace {
 		diagnostics::armor.lastHookSlots.store(
 			static_cast<std::uint32_t>(original->GetSlotMask()), std::memory_order_relaxed);
 		RE::FormID appearanceID{};
+		std::uint32_t expectedSlots = static_cast<std::uint32_t>(original->GetSlotMask());
 		{
 			std::lock_guard lock(overridesMutex);
 			auto findAppearance = [&](RE::FormID id) {
@@ -146,14 +163,21 @@ namespace {
 				appearanceID = 0;
 		}
 		// Some runtime armor proxies have neither the saved item's ID nor a
-		// template link. In that case only use a mapping when exactly one
-		// currently worn source has this exact biped slot mask.
-		if (!appearanceID) appearanceID = FindUniqueWornAppearanceForSlots(original);
+		// template link. Match only when exactly one currently worn mapped source
+		// overlaps the hook's slot mask; the replacement is checked against the
+		// stable source mask above.
+		if (!appearanceID) {
+			const auto wornMatch = FindUniqueWornAppearanceForSlots(original);
+			appearanceID = wornMatch.appearance;
+			if (appearanceID) {
+				expectedSlots = wornMatch.sourceSlots;
+			}
+		}
 		if (!appearanceID) return nullptr;
 		diagnostics::armor.mapMatches.fetch_add(1, std::memory_order_relaxed);
 		auto* appearance = RE::TESForm::LookupByID<RE::TESObjectARMO>(appearanceID);
 		if (!appearance || !appearance->GetPlayable() ||
-		    appearance->GetSlotMask() != original->GetSlotMask() ||
+		    static_cast<std::uint32_t>(appearance->GetSlotMask()) != expectedSlots ||
 		    !HasPlayerArmorModel(appearance)) return nullptr;
 		diagnostics::armor.validAppearances.fetch_add(1, std::memory_order_relaxed);
 		return appearance;
