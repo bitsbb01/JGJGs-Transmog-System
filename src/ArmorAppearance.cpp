@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cstddef>
+#include <vector>
 #include <string>
 #include <sstream>
 #include <iomanip>
@@ -68,6 +69,43 @@ namespace {
 		return false;
 	}
 
+	bool IsWornArmorForm(RE::FormID formID)
+	{
+		auto* player = RE::PlayerCharacter::GetSingleton();
+		auto* changes = player ? player->GetInventoryChanges() : nullptr;
+		if (!changes || !changes->entryList) return false;
+		for (auto* entry : *changes->entryList) {
+			if (!entry || !entry->object || entry->object->GetFormID() != formID || !entry->extraLists) continue;
+			for (auto* extra : *entry->extraLists) {
+				if (extra && (extra->HasType(RE::ExtraDataType::kWorn) ||
+				              extra->HasType(RE::ExtraDataType::kWornLeft))) return true;
+			}
+		}
+		return false;
+	}
+
+	RE::FormID FindUniqueWornAppearanceForSlots(RE::TESObjectARMO* hookArmor)
+	{
+		if (!hookArmor) return 0;
+		const auto slots = hookArmor->GetSlotMask();
+		std::vector<RE::FormID> candidates;
+		{
+			std::lock_guard lock(overridesMutex);
+			auto addCandidates = [&](const auto& mappings) {
+				for (const auto& [sourceID, appearanceID] : mappings) {
+					auto* source = RE::TESForm::LookupByID<RE::TESObjectARMO>(sourceID);
+					if (source && source->GetSlotMask() == slots && IsWornArmorForm(sourceID))
+						candidates.push_back(appearanceID);
+				}
+			};
+			addCandidates(overrides);
+			addCandidates(previews);
+		}
+		std::sort(candidates.begin(), candidates.end());
+		candidates.erase(std::unique(candidates.begin(), candidates.end()), candidates.end());
+		return candidates.size() == 1 ? candidates.front() : 0;
+	}
+
 	RE::TESObjectARMO* ResolveOverride(RE::TESObjectARMO* original)
 	{
 		if (!original) return nullptr;
@@ -89,10 +127,14 @@ namespace {
 			// Some equipped armor is represented by a runtime/template form while
 			// the MCM stores the stable inventory ARMO form. Resolve both identities.
 			if (!findAppearance(original->GetFormID()) &&
-			    (!original->templateArmor || !findAppearance(original->templateArmor->GetFormID()))) {
-				return nullptr;
-			}
+			    original->templateArmor && !findAppearance(original->templateArmor->GetFormID()))
+				appearanceID = 0;
 		}
+		// Some runtime armor proxies have neither the saved item's ID nor a
+		// template link. In that case only use a mapping when exactly one
+		// currently worn source has this exact biped slot mask.
+		if (!appearanceID) appearanceID = FindUniqueWornAppearanceForSlots(original);
+		if (!appearanceID) return nullptr;
 		diagnostics::armor.mapMatches.fetch_add(1, std::memory_order_relaxed);
 		auto* appearance = RE::TESForm::LookupByID<RE::TESObjectARMO>(appearanceID);
 		if (!appearance || !appearance->GetPlayable() ||
