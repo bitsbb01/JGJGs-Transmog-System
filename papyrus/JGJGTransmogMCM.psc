@@ -38,7 +38,8 @@ EndEvent
 Event OnPageReset(String page)
     SetCursorFillMode(TOP_TO_BOTTOM)
     If page == "Development status"
-        AddHeaderOption("Player appearance system")
+        AddHeaderOption("BUILD ID: ARMOR-TEMPLATE-03")
+        AddTextOption("Build check", "New script loaded", OPTION_FLAG_DISABLED)
         AddTextOption("Armor appearances", "Refresh test build")
         AddTextOption("Weapon appearances", "Swaps confirmed; redraw")
         AddTextOption("Save/load favorites", "Armor and weapons")
