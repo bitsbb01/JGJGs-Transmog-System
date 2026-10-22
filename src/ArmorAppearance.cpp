@@ -626,6 +626,38 @@ std::string GetArmorRenderFormIDs()
 	return out.str();
 }
 
+std::string GetArmorAddonSlotMasks(RE::FormID formID)
+{
+	auto* armor = RE::TESForm::LookupByID<RE::TESObjectARMO>(formID);
+	if (!armor) return "none";
+	std::ostringstream out;
+	out << std::hex << std::uppercase << std::setfill('0');
+	bool first = true;
+	for (auto* addon : armor->armorAddons) {
+		if (!addon) continue;
+		if (!first) out << ' ';
+		first = false;
+		out << std::setw(8) << addon->GetFormID() << ':'
+		    << static_cast<std::uint32_t>(addon->GetSlotMask());
+	}
+	return first ? "none" : out.str();
+}
+
+std::string GetArmorSourceAddonMasks()
+{
+	return GetArmorAddonSlotMasks(diagnostics::armor.lastSetOriginal.load(std::memory_order_relaxed));
+}
+
+std::string GetArmorAppearanceAddonMasks()
+{
+	return GetArmorAddonSlotMasks(diagnostics::armor.lastSetAppearance.load(std::memory_order_relaxed));
+}
+
+std::string GetArmorHookAddonMasks()
+{
+	return GetArmorAddonSlotMasks(diagnostics::armor.lastHookInput.load(std::memory_order_relaxed));
+}
+
 std::string GetArmorRenderContext()
 {
 	const auto hookID = diagnostics::armor.lastHookInput.load(std::memory_order_relaxed);

@@ -15,6 +15,9 @@ namespace jgjg::engine {
 	std::string GetArmorRenderDiagnostics();
 	std::string GetArmorRenderFormIDs();
 	std::string GetArmorRenderContext();
+	std::string GetArmorSourceAddonMasks();
+	std::string GetArmorAppearanceAddonMasks();
+	std::string GetArmorHookAddonMasks();
 	std::string GetPlayerWornArmorFormIDs();
 	std::string GetArmorOverrideStatus();
 	bool SetArmorAppearance(RE::TESForm* original, RE::TESForm* appearance);
