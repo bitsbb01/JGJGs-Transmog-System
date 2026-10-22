@@ -124,6 +124,9 @@ std::string ArmorRenderDiagnostics(RE::StaticFunctionTag*) { return jgjg::engine
 std::string WeaponRenderDiagnostics(RE::StaticFunctionTag*) { return jgjg::engine::GetWeaponRenderDiagnostics(); }
 std::string ArmorRenderFormIDs(RE::StaticFunctionTag*) { return jgjg::engine::GetArmorRenderFormIDs(); }
 std::string ArmorRenderContext(RE::StaticFunctionTag*) { return jgjg::engine::GetArmorRenderContext(); }
+std::string ArmorSourceAddonMasks(RE::StaticFunctionTag*) { return jgjg::engine::GetArmorSourceAddonMasks(); }
+std::string ArmorAppearanceAddonMasks(RE::StaticFunctionTag*) { return jgjg::engine::GetArmorAppearanceAddonMasks(); }
+std::string ArmorHookAddonMasks(RE::StaticFunctionTag*) { return jgjg::engine::GetArmorHookAddonMasks(); }
 std::string PlayerWornArmorFormIDs(RE::StaticFunctionTag*) { return jgjg::engine::GetPlayerWornArmorFormIDs(); }
 std::string WeaponRenderFormIDs(RE::StaticFunctionTag*) { return jgjg::engine::GetWeaponRenderFormIDs(); }
 std::string ArmorOverrideStatus(RE::StaticFunctionTag*) { return jgjg::engine::GetArmorOverrideStatus(); }
@@ -242,6 +245,9 @@ bool Register(RE::BSScript::IVirtualMachine* vm) {
     vm->RegisterFunction("GetWeaponRenderDiagnostics", "JGJGTransmogNative", WeaponRenderDiagnostics);
     vm->RegisterFunction("GetArmorRenderFormIDs", "JGJGTransmogNative", ArmorRenderFormIDs);
     vm->RegisterFunction("GetArmorRenderContext", "JGJGTransmogNative", ArmorRenderContext);
+    vm->RegisterFunction("GetArmorSourceAddonMasks", "JGJGTransmogNative", ArmorSourceAddonMasks);
+    vm->RegisterFunction("GetArmorAppearanceAddonMasks", "JGJGTransmogNative", ArmorAppearanceAddonMasks);
+    vm->RegisterFunction("GetArmorHookAddonMasks", "JGJGTransmogNative", ArmorHookAddonMasks);
     vm->RegisterFunction("GetPlayerWornArmorFormIDs", "JGJGTransmogNative", PlayerWornArmorFormIDs);
     vm->RegisterFunction("GetWeaponRenderFormIDs", "JGJGTransmogNative", WeaponRenderFormIDs);
     vm->RegisterFunction("GetArmorOverrideStatus", "JGJGTransmogNative", ArmorOverrideStatus);

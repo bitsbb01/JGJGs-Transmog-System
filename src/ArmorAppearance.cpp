@@ -95,26 +95,69 @@ namespace {
 		return false;
 	}
 
-	RE::FormID FindUniqueWornAppearanceForSlots(RE::TESObjectARMO* hookArmor)
+	struct WornAppearanceMatch
 	{
-		if (!hookArmor) return 0;
-		const auto slots = hookArmor->GetSlotMask();
-		std::vector<RE::FormID> candidates;
+		RE::FormID appearance{};
+		std::uint32_t sourceSlots{};
+		std::uint32_t sharedAddons{};
+	};
+
+	std::uint32_t CountSharedArmorAddons(const RE::TESObjectARMO* left, const RE::TESObjectARMO* right)
+	{
+		if (!left || !right) return 0;
+		std::uint32_t shared{};
+		for (auto* leftAddon : left->armorAddons) {
+			if (!leftAddon) continue;
+			for (auto* rightAddon : right->armorAddons) {
+				if (rightAddon == leftAddon) {
+					++shared;
+					break;
+				}
+			}
+		}
+		return shared;
+	}
+
+	WornAppearanceMatch FindUniqueWornAppearanceForSlots(RE::TESObjectARMO* hookArmor)
+	{
+		if (!hookArmor) return {};
+		const auto hookSlots = static_cast<std::uint32_t>(hookArmor->GetSlotMask());
+		std::vector<WornAppearanceMatch> candidates;
 		{
 			std::lock_guard lock(overridesMutex);
-			auto addCandidates = [&](const auto& mappings) {
-				for (const auto& [sourceID, appearanceID] : mappings) {
-					auto* source = RE::TESForm::LookupByID<RE::TESObjectARMO>(sourceID);
-					if (source && source->GetSlotMask() == slots && IsWornArmorForm(sourceID))
-						candidates.push_back(appearanceID);
-				}
-			};
-			addCandidates(overrides);
-			addCandidates(previews);
+			// A hook call can be made for an armor proxy whose mask contains
+			// additional engine-managed bits. The stable equipped source still
+			// has the authoritative mask, so use intersection here and validate
+			// the selected appearance against that source below.
+			for (const auto& [sourceID, savedAppearance] : overrides) {
+				const auto preview = previews.find(sourceID);
+				const auto appearanceID = preview != previews.end() ? preview->second : savedAppearance;
+				auto* source = RE::TESForm::LookupByID<RE::TESObjectARMO>(sourceID);
+				if (!source || !IsWornArmorForm(sourceID)) continue;
+				const auto sourceSlots = static_cast<std::uint32_t>(source->GetSlotMask());
+				if ((sourceSlots & hookSlots) != 0)
+					candidates.push_back({ appearanceID, sourceSlots, CountSharedArmorAddons(source, hookArmor) });
+			}
+			for (const auto& [sourceID, appearanceID] : previews) {
+				if (overrides.contains(sourceID)) continue;
+				auto* source = RE::TESForm::LookupByID<RE::TESObjectARMO>(sourceID);
+				if (!source || !IsWornArmorForm(sourceID)) continue;
+				const auto sourceSlots = static_cast<std::uint32_t>(source->GetSlotMask());
+				if ((sourceSlots & hookSlots) != 0)
+					candidates.push_back({ appearanceID, sourceSlots, CountSharedArmorAddons(source, hookArmor) });
+			}
 		}
-		std::sort(candidates.begin(), candidates.end());
-		candidates.erase(std::unique(candidates.begin(), candidates.end()), candidates.end());
-		return candidates.size() == 1 ? candidates.front() : 0;
+		const auto bestAddonMatch = std::max_element(candidates.begin(), candidates.end(),
+			[](const auto& left, const auto& right) { return left.sharedAddons < right.sharedAddons; });
+		if (bestAddonMatch != candidates.end() && bestAddonMatch->sharedAddons > 0) {
+			const auto bestCount = bestAddonMatch->sharedAddons;
+			std::erase_if(candidates, [bestCount](const auto& candidate) {
+				return candidate.sharedAddons != bestCount;
+			});
+		}
+		diagnostics::armor.lastWornMatchCandidates.store(
+			static_cast<std::uint32_t>(candidates.size()), std::memory_order_relaxed);
+		return candidates.size() == 1 ? candidates.front() : WornAppearanceMatch{};
 	}
 
 	RE::TESObjectARMO* ResolveOverride(RE::TESObjectARMO* original)
@@ -126,6 +169,7 @@ namespace {
 		diagnostics::armor.lastHookSlots.store(
 			static_cast<std::uint32_t>(original->GetSlotMask()), std::memory_order_relaxed);
 		RE::FormID appearanceID{};
+		std::uint32_t expectedSlots = static_cast<std::uint32_t>(original->GetSlotMask());
 		{
 			std::lock_guard lock(overridesMutex);
 			auto findAppearance = [&](RE::FormID id) {
@@ -146,14 +190,21 @@ namespace {
 				appearanceID = 0;
 		}
 		// Some runtime armor proxies have neither the saved item's ID nor a
-		// template link. In that case only use a mapping when exactly one
-		// currently worn source has this exact biped slot mask.
-		if (!appearanceID) appearanceID = FindUniqueWornAppearanceForSlots(original);
+		// template link. Match only when exactly one currently worn mapped source
+		// overlaps the hook's slot mask; the replacement is checked against the
+		// stable source mask above.
+		if (!appearanceID) {
+			const auto wornMatch = FindUniqueWornAppearanceForSlots(original);
+			appearanceID = wornMatch.appearance;
+			if (appearanceID) {
+				expectedSlots = wornMatch.sourceSlots;
+			}
+		}
 		if (!appearanceID) return nullptr;
 		diagnostics::armor.mapMatches.fetch_add(1, std::memory_order_relaxed);
 		auto* appearance = RE::TESForm::LookupByID<RE::TESObjectARMO>(appearanceID);
 		if (!appearance || !appearance->GetPlayable() ||
-		    appearance->GetSlotMask() != original->GetSlotMask() ||
+		    static_cast<std::uint32_t>(appearance->GetSlotMask()) != expectedSlots ||
 		    !HasPlayerArmorModel(appearance)) return nullptr;
 		diagnostics::armor.validAppearances.fetch_add(1, std::memory_order_relaxed);
 		return appearance;
@@ -557,7 +608,7 @@ std::string GetArmorRenderDiagnostics()
 		std::lock_guard lock(overridesMutex);
 		liveOverride = setOriginal && (overrides.contains(setOriginal) || previews.contains(setOriginal));
 	}
-	return std::to_string(diagnostics::armor.refreshRequests.load(std::memory_order_relaxed)) + "/" +
+	return "DLL08 " + std::to_string(diagnostics::armor.refreshRequests.load(std::memory_order_relaxed)) + "/" +
 	       std::to_string(diagnostics::armor.equipmentUpdates.load(std::memory_order_relaxed)) + "/" +
 	       std::to_string(diagnostics::armor.hookCalls.load(std::memory_order_relaxed)) + "/" +
 	       std::to_string(diagnostics::armor.mapMatches.load(std::memory_order_relaxed)) + "/" +
@@ -570,16 +621,46 @@ std::string GetArmorRenderFormIDs()
 {
 	std::ostringstream out;
 	out << std::hex << std::uppercase << std::setfill('0')
-	    << std::setw(8) << diagnostics::armor.lastSetOriginal.load(std::memory_order_relaxed) << ">"
-	    << std::setw(8) << diagnostics::armor.lastSetAppearance.load(std::memory_order_relaxed) << " / "
-	    << std::setw(8) << diagnostics::armor.lastHookInput.load(std::memory_order_relaxed);
+	    << "S:" << std::setw(8) << diagnostics::armor.lastSetOriginal.load(std::memory_order_relaxed)
+	    << " A:" << std::setw(8) << diagnostics::armor.lastSetAppearance.load(std::memory_order_relaxed);
 	return out.str();
+}
+
+std::string GetArmorAddonSlotMasks(RE::FormID formID)
+{
+	auto* armor = RE::TESForm::LookupByID<RE::TESObjectARMO>(formID);
+	if (!armor) return "none";
+	std::ostringstream out;
+	out << std::hex << std::uppercase << std::setfill('0');
+	bool first = true;
+	for (auto* addon : armor->armorAddons) {
+		if (!addon) continue;
+		if (!first) out << ' ';
+		first = false;
+		out << std::setw(8) << addon->GetFormID() << ':'
+		    << static_cast<std::uint32_t>(addon->GetSlotMask());
+	}
+	return first ? "none" : out.str();
+}
+
+std::string GetArmorSourceAddonMasks()
+{
+	return GetArmorAddonSlotMasks(diagnostics::armor.lastSetOriginal.load(std::memory_order_relaxed));
+}
+
+std::string GetArmorAppearanceAddonMasks()
+{
+	return GetArmorAddonSlotMasks(diagnostics::armor.lastSetAppearance.load(std::memory_order_relaxed));
+}
+
+std::string GetArmorHookAddonMasks()
+{
+	return GetArmorAddonSlotMasks(diagnostics::armor.lastHookInput.load(std::memory_order_relaxed));
 }
 
 std::string GetArmorRenderContext()
 {
 	const auto hookID = diagnostics::armor.lastHookInput.load(std::memory_order_relaxed);
-	const auto templateID = diagnostics::armor.lastHookTemplate.load(std::memory_order_relaxed);
 	const auto hookSlots = diagnostics::armor.lastHookSlots.load(std::memory_order_relaxed);
 	const auto sourceID = diagnostics::armor.lastSetOriginal.load(std::memory_order_relaxed);
 	auto* source = RE::TESForm::LookupByID<RE::TESObjectARMO>(sourceID);
@@ -588,33 +669,25 @@ std::string GetArmorRenderContext()
 	std::ostringstream out;
 	out << std::hex << std::uppercase << std::setfill('0')
 	    << "H:" << std::setw(8) << hookID
-	    << " T:" << std::setw(8) << templateID
-	    << " S:" << std::setw(8) << hookSlots
-	    << " O:" << std::setw(8) << (source ? static_cast<std::uint32_t>(source->GetSlotMask()) : 0)
-	    << " W:" << (sourceByForm ? '1' : '0');
+	    << " S:" << hookSlots
+	    << " O:" << (source ? static_cast<std::uint32_t>(source->GetSlotMask()) : 0)
+	    << " W:" << (sourceByForm ? '1' : '0')
+	    << " C:" << diagnostics::armor.lastWornMatchCandidates.load(std::memory_order_relaxed);
 	return out.str();
 }
 
 std::string GetPlayerWornArmorFormIDs()
 {
-	std::map<RE::FormID, std::uint32_t> worn;
 	auto* player = RE::PlayerCharacter::GetSingleton();
-	if (player) {
-		for (std::uint32_t bit = 0; bit < 32; ++bit) {
-			auto* armor = player->GetWornArmor(
-				static_cast<RE::BGSBipedObjectForm::BipedObjectSlot>(1u << bit), true);
-			if (armor) worn.try_emplace(armor->GetFormID(), static_cast<std::uint32_t>(armor->GetSlotMask()));
-		}
-	}
+	const auto sourceID = diagnostics::armor.lastSetOriginal.load(std::memory_order_relaxed);
+	auto* source = RE::TESForm::LookupByID<RE::TESObjectARMO>(sourceID);
+	const bool worn = player && player->GetWornArmor(sourceID, true);
 	std::ostringstream out;
 	out << std::hex << std::uppercase << std::setfill('0');
-	bool first = true;
-	for (const auto& [id, slots] : worn) {
-		if (!first) out << ' ';
-		first = false;
-		out << std::setw(8) << id << ':' << std::setw(8) << slots;
-	}
-	return first ? "none" : out.str();
+	out << std::setw(8) << sourceID << " S:"
+	    << (source ? static_cast<std::uint32_t>(source->GetSlotMask()) : 0)
+	    << " W:" << (worn ? '1' : '0');
+	return out.str();
 }
 
 std::string GetArmorOverrideStatus()
